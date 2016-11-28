@@ -25,6 +25,7 @@ or when it is switched on before the program starts.
  
 Along the lines it prints to the log and sends notifications
 but of course you can turn that off by removing those lines.
+
  
 --]]
  
@@ -35,20 +36,24 @@ commandArray = {}
 SAMPLE_INTERVAL = 1                 -- time in minutes when a the script logic will happen
 FAN_DELTA_TRIGGER = 2               -- rise in humidity (%) that will trigger the fan
 TEMP_DELTA_TRIGGER_OFF = -0.1       -- decrease in temperature (C) that will stop the  music
-TEMP_DELTA_TRIGGER_ON = 0.2         -- increase in temperature that will start the  music
+TEMP_DELTA_TRIGGER_ON = 0.1         -- increase in temperature that will start the  music
 MAX_MUSIC_CYCLES = 20               -- maximum amount of sample cycles the music can be on
-FAN_MAX_TIME = 120                  -- maximum amount of sample cycles the fan can be on, 
+ALARMLEVEL1 = 5 	            
+ALARMLEVEL2 = 8                
+MAX_MUSIC_CYCLES = 20                -- maximum amount of sample cycles the music can be on
+FAN_MAX_TIME = 120                  --  maximum amount of sample cycles the fan can be on, 
                                     -- in case we never reach the target humidity
 TARGET_OFFSET = 2                   -- ventilator goes off if target+offset is reached 
                                     -- (maybe it takes too long to reach the true target due to wet towels etc)
-FAN_NAME = 'VMC'                    -- exact device name of the switch turning on/off the ventilator
-SPEAKER_NAME = 'SpeakerDouche'      -- exact device name of the switch turning on/off the music
-SENSOR_NAME = 'Douche'              -- exact device name of the humidity sensor
+FAN_NAME = 'VMC'    -- exact device name of the switch turning on/off the ventilator
+ALARM_NAME = 'Alarme'    -- exact device name of the switch turning on/off the ventilator
+SPEAKER_NAME = 'SpeakerDouche' -- exact device name of the switch turning on/off the music
+SENSOR_NAME = 'Douche'     -- exact device name of the humidity sensor
  
 TEST_MODE = false                   -- when true TEST_MODE_HUMVAR is used instead of the real sensor
 TEST_MODE_HUMVAR = 'testHumidity'   -- fake humidity value, give it a test value in domoticz/uservars
 TEST_MODE_TEMPVAR = 'testTemp'      -- fake humidity value, give it a test value in domoticz/uservars
-PRINT_MODE = true				    -- when true wil print output to log and send notifications
+PRINT_MODE = true				-- when true wil print output to log and send notifications
  
 if PRINT_MODE == true then
 print('Fan control')
@@ -242,20 +247,24 @@ end
                 	commandArray[SPEAKER_NAME] = 'Off'
                 	showerMusicStarted=0
                    else
-		      -- Check if we didn't reach the maxium music playing time
-	              if (showerMusicStarted > MAX_MUSIC_CYCLES) then
-                		commandArray[SPEAKER_NAME] = 'Off'
-	               		showerMusicStarted=0
-                      else
-                		showerMusicStarted = showerMusicStarted + 1
-		                print('MusicCycle #: ' .. showerMusicStarted)
+		            -- Check if we didn't reach the maxium music playing time
+               	     showerMusicStarted = showerMusicStarted + 1
+		             print('MusicCycle #: ' .. showerMusicStarted)
+	                 if (showerMusicStarted > MAX_MUSIC_CYCLES) then
+                		    commandArray[SPEAKER_NAME] = 'Off'
+	               		    showerMusicStarted=0
+	                 elseif (showerMusicStarted > ALARMLEVEL1 ) then
+                	        commandArray[ALARM_NAME] = 'Clock'
+	                 elseif (showerMusicStarted > ALARMLEVEL2 ) then
+                	        commandArray[ALARM_NAME] = 'Alarme'
                       end	  
 		   end
                else -- Speaker is off
-                -- TODO: try to catch another major increase in case someone take 
                 -- another shower while FAN program was started already
                	   if (tempdelta > TEMP_DELTA_TRIGGER_ON) then
-		     print('New major Temperature increase detected')
+		             print('New major Temperature increase detected')
+                     commandArray[SPEAKER_NAME] = 'On'
+	             showerMusicStarted=0
                    end
                end
             end

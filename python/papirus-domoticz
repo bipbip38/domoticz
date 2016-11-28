@@ -1,0 +1,327 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+######################################################################
+# * $Id: 
+# * $Revision:  $
+# * $Date: 2012-10-16 11:26:23 +0200 (Tue, 16 Oct 2012) $
+# * Created By: ldo
+######################################################################
+# V1.0 - Display Temperature and Wind on the papirus
+# V1.1 - Added a sign to indicate whenever measure is old (HaveTimeout)
+# V1.2 - Added GPIO monitor to switch display mode
+# V1.3 - Added trend indicators
+# V1.4 - Adjusted Display
+######################################################################
+
+import json
+import requests
+from requests.auth import HTTPBasicAuth
+
+import os
+import sys
+import time
+from datetime import datetime,timedelta
+from papirus import Papirus
+from PIL import Image
+from PIL import ImageDraw
+from PIL import ImageFont
+
+import RPi.GPIO as GPIO
+
+import logging
+
+from string import Template
+import ConfigParser
+############# Init ################################## 
+user = os.getuid()
+if user != 0:
+    print "Please run script as root"
+    sys.exit()
+
+SW1 = 16
+SW2 = 26
+SW3 = 20
+SW4 = 21
+
+# Initialize Papirus (global)
+
+papirus = Papirus()
+
+chronoend = datetime.now()
+
+############# Parameters ################################## 
+# a simple function to read an array of configuration files into a config object
+def read_config(cfg_files):
+    if(cfg_files != None):
+        config = ConfigParser.RawConfigParser()
+
+        # merges all files into a single config
+        for i, cfg_file in enumerate(cfg_files):
+            if(os.path.exists(cfg_file)):
+                config.read(cfg_file)
+
+        return config
+
+config = read_config(['papirus-domoticz.properties'])
+
+if(config == None):
+ 	print ".properties file missing !" 
+	exit 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Domoticz parameters
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Connection Info
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dz_ip= config.get('global','dz_ip')
+dz_port= config.get('global','dz_port')
+dz_user= config.get('global','dz_user')
+dz_password= config.get('global','dz_password')
+
+# IDX of the Virtual Sensors
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#Temperature
+dz_text_idx=config.get('global','dz_text_idx')
+dz_ttv_idx=config.get('global','dz_ttv_idx')
+dz_tgrenier_idx=config.get('global','dz_tgrenier_idx')
+dz_tchbrnono_idx=config.get('global','dz_tchbrnono_idx')
+dz_tsalon_idx=config.get('global','dz_tsalon_idx')
+dz_tdouche_idx=config.get('global','dz_tdouche_idx')
+#Wind
+dz_pioupiou_idx=config.get('global','dz_pioupiou_idx')
+
+##################  ENd of Parameters ######################
+
+### Request domoticz api server to get data for the given device 
+headers = {
+    'User-Agent': 'Mozilla/5.0',
+}
+
+##################  Initalialize values for trending ######################
+pexter = 0
+ptv = 0
+pgrenier = 0
+pchbrnono = 0
+psalon = 0
+pdouche = 0
+########### Domoticz Virtual Widget  FUNCTION ########
+
+def upd_variable (var,val):
+
+    # /json.htm?type=command&param=updateuservariable&vname=USERVARIABLENAME&vtype=USERVARIABLETYPE&vvalue=USERVARIABLEVALUE
+    if  r.status_code != 200:
+        print "Error ("+str(r.status_code)+") sending data to Domoticz API using request: "+dz_request
+        
+###### END DOmoticz Virtual Widget update FUNCTION ########
+     
+def get_temp (idx,prev_value):
+    # domoticz URL to get value from a device:
+    # https://alpage.ddns.net/json.htm?type=devices&rid=20
+    # see https://www.domoticz.com/wiki/Domoticz_API/
+
+    json_url_text='/json.htm?type=devices&rid='
+
+    dz_request='http://'+dz_ip+':'+dz_port+json_url_text+idx
+
+    r=requests.get(dz_request,auth=HTTPBasicAuth(dz_user,dz_password))
+
+    status=r.status_code
+    if status == 200:
+    # API send 200 if everything is OK
+        response=r.json()
+        temp_value=response['result'][0]['Temp']
+        if temp_value > prev_value:
+            trend_str=' +'
+        elif temp_value < prev_value:
+            trend_str=' -'
+        else:
+            trend_str=''
+
+        temp_valid=response['result'][0]['HaveTimeout']
+        if temp_valid:
+          return str(temp_value)+u'\u00B0C'+ '(!)',temp_value
+        else:
+          return str(temp_value)+u'\u00B0C'+trend_str,temp_value
+    else:
+        print "Error ("+str(status)+") reading data from Domoticz API using request: "+dz_request
+        return 'ER-PD-001',-1
+
+def get_wind (idx):
+    # domoticz URL to get value from a device:
+    # https://alpage.ddns.net/json.htm?type=devices&rid=20
+    # see https://www.domoticz.com/wiki/Domoticz_API/
+
+    json_url_text='/json.htm?type=devices&rid='
+
+    dz_request='http://'+dz_ip+':'+dz_port+json_url_text+idx
+
+    r=requests.get(dz_request,auth=HTTPBasicAuth(dz_user,dz_password))
+
+    status=r.status_code
+    if status == 200:
+    # API send 200 if everything is OK
+        response=r.json()
+        speed_str=response['result'][0]['Speed']
+        dir_str=response['result'][0]['DirectionStr']
+        max_str=response['result'][0]['Gust']
+        wind_str=dir_str+" / "+str(speed_str)+" km/h"
+        windmax_str=str(max_str)+" km/h"
+        return wind_str,windmax_str
+    else:
+        print "Error ("+str(status)+") reading data from Domoticz API using request: "+pi_request
+        return 'ER-PD-002','ER-PD_002'
+
+class DeltaTemplate(Template):
+    delimiter = "%"
+
+def strfdelta(tdelta, fmt):
+    d = {"D": tdelta.days}
+    hours, rem = divmod(tdelta.seconds, 3600)
+    minutes, seconds = divmod(rem, 60)
+    d["H"] = '{:02d}'.format(hours)
+    d["M"] = '{:02d}'.format(minutes)
+    d["S"] = '{:02d}'.format(seconds)
+    t = DeltaTemplate(fmt)
+    return t.substitute(**d)
+
+def refresh_screen(type,mode):
+    global pexter 
+    global ptv 
+    global pgrenier
+    global pchbrnono 
+    global psalon 
+    global pdouche 
+
+
+    # Get latest values from Domoticz
+    val_text,texter = get_temp(dz_text_idx,pexter)
+    pexter = texter
+    val_ttv,ttv = get_temp(dz_ttv_idx,ptv)
+    ptv = ttv
+    val_tsalon,tsalon = get_temp(dz_tsalon_idx,psalon)
+    psalon = tsalon
+    val_tgrenier,tgrenier = get_temp(dz_tgrenier_idx,pgrenier)
+
+    pgrenier = tgrenier
+    val_tdouche,tdouche = get_temp(dz_tdouche_idx,pdouche)
+    pdouche = tdouche
+    val_tchbrnono,tchbrnono = get_temp(dz_tchbrnono_idx,pchbrnono)
+    pchbrnono = tchbrnono
+    val_wcoynelle,val_wmax = get_wind(dz_pioupiou_idx)
+
+    # initially set all white background
+    image = Image.new('1', papirus.size, 1)
+    draw = ImageDraw.Draw(image)
+
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font_xbig = ImageFont.truetype(font_path, 50)
+    font_big = ImageFont.truetype(font_path, 30)
+    font_title = ImageFont.truetype(font_path, 20)
+    font_values = ImageFont.truetype(font_path, 16)
+    font_small = ImageFont.truetype(font_path, 12)
+
+    if mode == 1:
+        draw.text( (20, 20) , val_text, font=font_xbig, fill=0)
+        draw.text( (5, 85) , val_wcoynelle, font=font_big,fill=0)
+    elif mode == 2:
+        draw.text( (5, 40) , "Nono: "+val_tchbrnono, font=font_big, fill=0)
+        draw.text( (5, 80) , "Grenier: "+val_tgrenier, font=font_big, fill=0)
+    elif mode == 3:
+        draw.text( (0, 40) , val_wcoynelle, font=font_big,fill=0)
+        draw.text( (30, 90) , "[" + val_wmax + "] max", font=font_title, fill=0)
+    elif mode == 4:
+        draw.text( (0, 0) , "Exterieur: "+val_text, font=font_title, fill=0)
+        draw.text( (0, 32) , "Salon: "+val_tsalon, font=font_values, fill=0)
+        draw.text( (0, 57) , "TV: "+val_ttv, font=font_values, fill=0)
+        draw.text( (0, 82) , "Douche: "+val_tdouche, font=font_values, fill=0)
+        draw.text( (0, 107) , "Grenier: "+val_tgrenier, font=font_values, fill=0)
+        draw.text( (0, 132) ,"Nono: "+val_tchbrnono, font=font_values, fill=0)
+    elif mode == 5:
+        draw.text( (5, 40) , "TV: "+val_ttv, font=font_big, fill=0)
+        draw.text( (5, 80) , "Douche: "+val_tdouche, font=font_big, fill=0)
+    elif mode == 7:
+        chrono = chronoend - datetime.now()
+        if chrono < timedelta(minutes = 0):
+            chronotxt = strfdelta(chrono,'%M:%S')
+        else:
+            chronotxt = 'GAME OVER !'
+        draw.text( (0, 40) , chronotxt, font=font_big, fill=0)
+    else:
+        draw.text( (0, 40) , "something went wrong !", font=font_values, fill=0)
+
+
+    now = datetime.now().strftime('%d %b %H:%M')
+    draw.text( (0, 152) , "mode "+str(mode)+ " / "+now , font=font_small, fill=0)
+#    print "screen will be refreshed with mode:"+str(mode)
+
+    papirus.display(image)
+
+    if type == 'full':
+        papirus.update()
+    else:
+        papirus.partial_update()
+
+
+
+##### MAIN ######
+def main():
+    #Intitialized GPO to use the papirus buttons
+    GPIO.setmode(GPIO.BCM)
+
+    GPIO.setup(SW1, GPIO.IN)
+    GPIO.setup(SW2, GPIO.IN)
+    GPIO.setup(SW3, GPIO.IN)
+    GPIO.setup(SW4, GPIO.IN)
+
+
+    ## Initially display mode 1 ...
+    current_mode=1
+    refresh_screen('full',current_mode)
+
+    ## set all current temp to 0 for trend 
+    count = 0
+
+    # ... then monitor button status to switch mode or refresh screen 
+    # partially every 5 minutes to display up to date measures
+    while True:
+      # Force Display with all temp and wind from domoticz 
+        if GPIO.input(SW1) == False:
+            current_mode = 1
+            refresh_screen('full',current_mode)
+            count = 0
+
+      # mode in between 1 and 4, switch to display temp and wind from domoticz
+        if GPIO.input(SW4) == False:
+            current_mode = current_mode +1
+            if current_mode == 6:
+               current_mode = 1
+            refresh_screen('full',current_mode)
+            count = 0
+
+      # Not implemented yet
+        if GPIO.input(SW2) == False:
+            current_mode =7 
+            duration= timedelta(minutes = 3)
+            chronoend = datetime.now() + duration
+            refresh_screen('full',current_mode)
+            count = 0
+
+        if GPIO.input(SW3) == False:
+            current_mode = 8 
+            refresh_screen('full',current_mode)
+            count = 0
+
+        # Refresh screen with current values from domoticz every ~5 minutes
+        # unless mode=6 to refresh every 1 sec
+        count = count + 1
+        if current_mode == 7 & count > 10:
+            count = 0
+            refresh_screen('partial',current_mode)
+        elif count > 3000:
+            count = 0
+            refresh_screen('partial',current_mode)
+        time.sleep(0.1)
+
+if __name__ == '__main__':
+    main()
+
