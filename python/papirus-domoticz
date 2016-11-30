@@ -61,15 +61,14 @@ def read_config(cfg_files):
                 config.read(cfg_file)
 
         return config
-
-config = read_config(['papirus-domoticz.properties'])
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Domoticz parameters
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+config = read_config(['/etc/domoticz/domoticz.properties'])
 
 if(config == None):
  	print ".properties file missing !" 
 	exit 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Domoticz parameters
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Connection Info
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
