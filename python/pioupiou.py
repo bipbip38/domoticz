@@ -1,5 +1,16 @@
 #!/usr/bin/python
-
+######################################################################
+#
+# Script to couple a Pioupiou wind sensor (www.pioupiou.fr) to a 
+# Domoticz server.
+# 1. Create a virtual sensor in Domoticz (type=Wind). 
+# 2. Copy domoticz.properties.default to /etc/domoticz/domoticz.properties
+# 3. Edit property file with domoticz credentials and IDX of the virtual sensor
+# 4. Copy this python script (pioupiou.py) under the python domoticz script folder
+# 5. Configure the pi_stationid in this python script (or change this script to make
+#     this a parameter)  
+# 6. Schedule crontab to run the script on a regular basis
+#    for example: */5 * * * *  /home/pi/domoticz/scripts/python/pioupiou.py
 ######################################################################
 import json
 import os
@@ -9,7 +20,6 @@ from datetime import datetime,timedelta
 import ConfigParser
 
 ############# Parameters ################################## 
-
 # a simple function to read an array of configuration files into a config object
 def read_config(cfg_files):
     if(cfg_files != None):
@@ -164,7 +174,7 @@ if status == 200:
     # WD = Wind direction (S, SW, NNW, etc.)
     val_wd=deg_to_direction(pi_wind_head)
 
-# Check how fresh is the measure before sending to domoticz (<8 hours).
+# Check how fresh is the measure before sending to domoticz (<1 hour by default).
     limit_date = datetime.utcnow() +  timedelta (days=offsetdays,hours=offsethours)
     if (pi_wind_date > limit_date):
         # Prepare svalue as expected by the Wind Virtual Sensor (svalue=WB;WD;WS;WG;22;24)
@@ -173,5 +183,4 @@ if status == 200:
     else:
         print "Measurement date starts to be old ["+str(pi_wind_date)+"], domoticz was not refreshed"
 else:
-
     print "Error ("+str(status)+") reading data from Pioupiou API using request: "+pi_request

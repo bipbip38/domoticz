@@ -1,0 +1,12 @@
+[global]
+# Connection Info to domoticz server
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dz_ip=
+dz_port=
+dz_user=
+dz_password=
+
+# IDX of the Virtual Sensors
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#idx of the virtual wind sensor to store measurement from Pioupiou.
+dz_pioupiou_idx=
