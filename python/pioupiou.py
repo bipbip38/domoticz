@@ -1,31 +1,45 @@
 #!/usr/bin/python
 
 ######################################################################
-# * $Id: 
-# * $Revision:  $
-######################################################################
-
 import json
+import os
 import requests
 from requests.auth import HTTPBasicAuth
 from datetime import datetime,timedelta
+import ConfigParser
 
 ############# Parameters ################################## 
+
+# a simple function to read an array of configuration files into a config object
+def read_config(cfg_files):
+    if(cfg_files != None):
+        config = ConfigParser.RawConfigParser()
+
+        # merges all files into a single config
+        for i, cfg_file in enumerate(cfg_files):
+            if(os.path.exists(cfg_file)):
+                config.read(cfg_file)
+
+        return config
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Domoticz parameters
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+config = read_config(['/etc/domoticz/domoticz.properties'])
 
+if(config == None):
+ 	print ".properties file missing !" 
+	exit 
 # Connection Info
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-dz_ip='192.168.0.9'
-dz_port='8080'
-dz_user='laurent'
-dz_password='kokopel1'
+dz_ip= config.get('global','dz_ip')
+dz_port= config.get('global','dz_port')
+dz_user= config.get('global','dz_user')
+dz_password= config.get('global','dz_password')
 
-# IDX of the Virtual Sensor
+# IDX of the Virtual Sensor holding the wind measurememt
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-dz_idx='13'
+dz_idx=config.get('global','dz_pioupiou_idx')
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # PiouPiou parameters
@@ -33,13 +47,15 @@ dz_idx='13'
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 pi_ip='api.pioupiou.fr'
 pi_port='80'
-pi_stationid='178'
+#pi_stationid='178'
+## Pierre Plantee
+pi_stationid='378'
 pi_url='/v1/live/'
 pi_request='http://'+pi_ip+':'+pi_port+pi_url+pi_stationid
 
 # Define the delay until we consider measure is outdated
 offsetdays=0
-offsethours=-2
+offsethours=-1
 ##################  ENd of Parameters ######################
 
 ########### Domoticz Virtual Widget update FUNCTION ########
@@ -135,7 +151,7 @@ if status == 200:
     # Measurement date
     pi_wind_date=datetime.strptime(measurements['date'], '%Y-%m-%dT%H:%M:%S.%fZ')
 
-# Convert to units expected by domotics virtual sensor
+# Convert to units expected by domoticz virtual sensor
     # WS = 10 * Wind speed [m/s]
     val_ws=  str(round(float(pi_wind_avg)*1000*10/3600))
 
@@ -148,10 +164,8 @@ if status == 200:
     # WD = Wind direction (S, SW, NNW, etc.)
     val_wd=deg_to_direction(pi_wind_head)
 
-#   print "speed is "+val_ws+" (max is "+val_wg+") - heading is "+val_wb+" (direction is "+val_wd+")"
-
 # Check how fresh is the measure before sending to domoticz (<8 hours).
-    limit_date = datetime.now() +  timedelta (days=offsetdays,hours=offsethours)
+    limit_date = datetime.utcnow() +  timedelta (days=offsetdays,hours=offsethours)
     if (pi_wind_date > limit_date):
         # Prepare svalue as expected by the Wind Virtual Sensor (svalue=WB;WD;WS;WG;22;24)
         svalue=val_wb+";"+val_wd+";"+val_ws+";"+val_wg+";00;00"
