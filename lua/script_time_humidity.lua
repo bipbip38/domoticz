@@ -46,13 +46,14 @@ FAN_MAX_TIME = 120                  --  maximum amount of sample cycles the fan 
                                     -- in case we never reach the target humidity
 TARGET_OFFSET = 2                   -- ventilator goes off if target+offset is reached 
                                     -- (maybe it takes too long to reach the true target due to wet towels etc)
-FAN_NAME = 'VMC'    -- exact device name of the switch turning on/off the ventilator
-ALARM_NAME = 'Alarme'    -- exact device name of the switch turning on/off the ventilator
-SPEAKER_NAME = 'SpeakerDouche' -- exact device name of the switch turning on/off the music
-SENSOR_NAME = 'Douche'     -- exact device name of the humidity sensor
+FAN_NAME = 'VMC'                    -- exact device name of the switch turning on/off the ventilator
+ALARM_NAME = 'Alarme'               -- exact device name of the switch turning on/off the alert jingles
+SPEAKER_NAME = 'SpeakerDouche'      -- exact device name of the switch turning on/off the music
+SENSOR_NAME = 'Douche'              -- exact device name of the humidity and temperature sensor
  
 TEST_MODE = false                   -- when true TEST_MODE_HUMVAR is used instead of the real sensor
 TEST_MODE_HUMVAR = 'testHumidity'   -- fake humidity value, give it a test value in domoticz/uservars
+TEST_MODE_TEMPVAR = 'testTemperature'   -- fake humidity value, give it a test value in domoticz/uservars
 PRINT_MODE = true				-- when true wil print output to log and send notifications
  
 if PRINT_MODE == true then
@@ -62,16 +63,16 @@ end
 -- get the global variables:
 -- this script runs every minute, humCounter is used to create SAMPLE_INTERVAL periods
 humCounter = tonumber(uservariables['humCounter'])
-humidityTmin5 = tonumber(uservariables['humidityTmin5'])                -- youngest reading
-humidityTmin10 = tonumber(uservariables['humidityTmin10'])              -- oldest reading
+humidityTmin5 = tonumber(uservariables['humidityTmin5'])           -- youngest reading
+humidityTmin10 = tonumber(uservariables['humidityTmin10'])         -- oldest reading
 temperatureTmin10 = tonumber(uservariables['tempTmin10'])      		-- oldest reading (Temp)
 temperatureTmin5 = tonumber(uservariables['tempTmin5'])         	-- youngest reading (Temp)
 targetFanOffHumidity = tonumber(uservariables['targetFanOffHumidity'])  -- target humidity
 fanMaxTimer = tonumber(uservariables['fanMaxTimer'])
-fanFollowsProgram = tonumber(uservariables['fanFollowsProgram'])        -- marker indicating that the 
-                                                                        -- decrease program is started
-showerStarted = tonumber(uservariables['showerStarted'])      -- marker indicating from how many 
-									-- cycle is the music is started
+fanFollowsProgram = tonumber(uservariables['fanFollowsProgram'])   -- marker indicating that the 
+                                                                   -- decrease program is started
+showerStarted = tonumber(uservariables['showerStarted'])           -- marker indicating from how many 
+									                               -- cycle is the shower is started
 target = 0 -- will hold the target humidity when the program starts
  
 -- get the current humidity value
@@ -98,6 +99,7 @@ if PRINT_MODE == true then
 		print('fanMaxTimer: ' .. fanMaxTimer)
 		print('humCounter:' .. humCounter)
 		print('fanFollowsProgram:' .. fanFollowsProgram)
+        print('showerStarted:' .. showerStarted)
 end
  
 -- increase cycle counter
@@ -111,8 +113,7 @@ if (humCounter >= SAMPLE_INTERVAL) then
         humidityTmin5 = current
         humidityTmin10 = current
         temperatureTmin5 = curtemp
-        temperatureTmin10 = curtemp
-	
+        temperatureTmin10 = curtemp	
     end
  
     humCounter = 0 -- reset the cycle counter
@@ -128,14 +129,14 @@ if (humCounter >= SAMPLE_INTERVAL) then
     
     delta = current - math.min(humidityTmin10, humidityTmin5)
     tempdelta = curtemp - math.max(temperatureTmin10, temperatureTmin5)
-if PRINT_MODE == true then
-	print('Delta Humidity: ' .. delta)
-	print('Delta Temp: ' .. tempdelta)
-end
+    
+    if PRINT_MODE == true then
+	    print('Delta Humidity: ' .. delta)
+	    print('Delta Temp: ' .. tempdelta)
+    end
  
-    -- pick the lowest history value
+    -- pick the lowest history value for humidity to determine target
     target = math.min(humidityTmin10, humidityTmin5) + TARGET_OFFSET
- 
     -- shift the previous measurements
     humidityTmin10 = humidityTmin5
     temperatureTmin10 = temperatureTmin5
@@ -169,15 +170,16 @@ end
  
             -- set the safety stop
             fanMaxTimer = FAN_MAX_TIME
- 
-	    if PRINT_MODE == true then
+            
+            -- Starting the music
+            commandArray[SPEAKER_NAME] = 'On'
+	        showerStarted=0
+            
+	        if PRINT_MODE == true then
             	print('Rise in humidity. Turning on the vents. Delta: ' .. delta)
             	print('Target humidity for turning the ventilator: ' ..targetFanOffHumidity)
             	commandArray['SendNotification'] = 'Ventilator and Music are on#The ventilator was activated at humidity level ' .. current .. '#0'
-            	-- Starting the music
-            	commandArray[SPEAKER_NAME] = 'On'
-	        showerStarted=0
-	    end
+	        end
         end
  
     else
@@ -185,7 +187,6 @@ end
             -- possible that someone started the ventilator manually
             fanMaxTimer = fanMaxTimer - 1
         end
- 
  
         if (fanFollowsProgram == 1) then -- not manually started
  
@@ -207,37 +208,32 @@ end
  
                 if (fanMaxTimer == 0 and current > targetFanOffHumidity) then
                     msg = 'Target not reached but safety time-out is triggered.'
-                    if PRINT_MODE == true then
-					print(msg)
-					end
                 else
                     msg = 'Target humidity reached'
-                    if PRINT_MODE == true then
-					print(msg)
-					end
                 end
- 
-				if PRINT_MODE == true then
-                print('Turning off the ventilator')
-                msg = msg .. '\nTurning off the ventilator'
+                if PRINT_MODE == true then
+					   print(msg)
+				       print('Turning off the ventilator')
+                       msg = msg .. '\nTurning off the ventilator'
 				end
  
                 targetFanOffHumidity = 0
                 fanMaxTimer = 0
                 fanFollowsProgram = 0
+                showerStarted=0
                 -- reset history in this case.. we start all over
                 -- Tmin10 is still in the 'ventilator=On'-zone
                 humidityTmin10 = humidityTmin5
-                 if PRINT_MODE == true then
-				commandArray['SendNotification'] = 'Ventilator is off#' .. msg .. '#0'
+                if PRINT_MODE == true then
+				    commandArray['SendNotification'] = 'Ventilator is off#' .. msg .. '#0'
 				end
- 
             else
-                -- we haven't reached the target for humidity yet (let's give some fun in the bathroom by starting
+                -- we haven't reached the target for humidity yet 
+                -- (let's have some fun in the bathroom by starting
                 -- the music and running some alarms to save hot water !).
                if PRINT_MODE == true then
-			   print('Temperature delta: ' .. tempdelta)
-	       end
+			       print('Temperature delta: ' .. tempdelta)
+	           end
 
                if (otherdevices[SPEAKER_NAME]=='On') then
                    -- Music is already started, time limit was not exceed
@@ -245,41 +241,46 @@ end
                	   showerStarted = showerStarted + 1
 
                	   if (tempdelta < TEMP_DELTA_TRIGGER_OFF) then
- 			-- Decrease was detected, stop the Speaker
-			print('Decrease detected, stopping the music')
-            	        commandArray['SendNotification'] = 'Shower is now stopped after ' .. showerStarted .. ' min'
-                	commandArray[SPEAKER_NAME] = 'Off'
-                	showerStarted=0
+ 			          -- Decrease was detected, stop the Speaker (this is the end of the shower)
+                      if PRINT_MODE == true then
+			             print('Decrease detected, stopping the music')
+                      end
+                	  commandArray[SPEAKER_NAME] = 'Off'
+                      commandArray['SendNotification'] = 'Shower is now stopped after ' .. showerStarted .. ' min'
+                	  showerStarted=0
                    else
-		      -- Check if we didn't reach the maxium music playing time
-		      -- and make sure to send notifications 
-		      print('showerStarted #: ' .. showerStarted)
-	              if (showerStarted > MAX_MUSIC_CYCLES) then
+		              -- Check if we didn't reach the maxium music playing time
+		              -- and make sure to send notifications 
+                      if (showerStarted == MAX_MUSIC_CYCLES) then
+                		    commandArray[SPEAKER_NAME] = 'Off'
+            	            commandArray['SendNotification'] = 'Music stopped and Buzzer alarm sent after ' .. showerStarted .. ' min'
                 	        commandArray[ALARM_NAME] = 'Buzzer'
-                		commandArray[SPEAKER_NAME] = 'Off'
-            	                commandArray['SendNotification'] = 'Music stopped and Buzzer alarm sent after ' .. showerStarted .. ' min'
-	              elseif (showerStarted ==ALARMLEVEL2 ) then
+                       elseif (showerStarted ==ALARMLEVEL2 ) then
                 	        commandArray[ALARM_NAME] = 'Alarme'
-            	                commandArray['SendNotification'] = 'Alarme sent after ' .. showerStarted .. ' min'
-	              elseif (showerStarted ==ALARMLEVEL1 ) then
+            	            commandArray['SendNotification'] = 'Alarme sent after ' .. showerStarted .. ' min'
+	                   elseif (showerStarted ==ALARMLEVEL1 ) then
                 	        commandArray[ALARM_NAME] = 'Clock'
-            	                commandArray['SendNotification'] = 'Clock alarm sent after ' .. showerStarted .. ' min'
-                      end	  
-		   end
-               else -- Speaker is off (shower is either stopped or max music cycle exceed)
-               	   if (tempdelta > TEMP_DELTA_TRIGGER_ON and delta > 0  and showerStarted==0) then
-                     -- Music is off and shower was stoppped, temperature increase detected and humitidy still rising,
-                     -- Let's start the music again
-		     print('New major Temperature increase detected')
+            	            commandArray['SendNotification'] = 'Clock alarm sent after ' .. showerStarted .. ' min'
+                       end	  
+		           end
+               else -- Speaker is off (shower is either stopped or max music cycle exceed) but fan on.
+               	   if (tempdelta > TEMP_DELTA_TRIGGER_ON and delta > 0 and showerStarted==0) then
+                     -- Music is off and shower was stoppped, temperature increase detected and humitidy still rising.
+                     -- Let's start the music again, considering this is a new/different shower.
+		             print('New major Temperature increase detected')
                      commandArray[SPEAKER_NAME] = 'On'
             	     commandArray['SendNotification'] = 'Music is on , temperature increase detected' .. tempdelta
-	             showerStarted=0
+	                 showerStarted=0 -- reset counter
                    elseif (showerStarted > 0) then 
                      -- Music is off (max playing time was reached!) but shower is still on
+                     -- keep the music off but increment duration of the shower.
                	     showerStarted = showerStarted + 1
-		     print('Maximum shower time exceed' .. showerStarted)
+		     print('Maximum shower time exceed. Shower on since ' .. showerStarted .. ' min')
+                   else
+                     -- Shower is off, not major increase detected - nothing to do
+                     msg ='fan is ON, doing its job - nobody is in the shower'
                    end
-               end -- end else speaker is off
+               end -- end else speaker is off (and fan on)
             end -- end else humitidy target not reached yet
         end
     end
