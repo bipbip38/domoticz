@@ -31,7 +31,12 @@ V6
 --]]
  
 commandArray = {}
- 
+
+function round(num, idp)
+  local mult = 10^(idp or 0)
+  return math.floor(num * mult + 0.5) / mult
+end
+
 -- declare some constants
 -- adjust to your specific situation
 SAMPLE_INTERVAL = 1                 -- time in minutes when a the script logic will happen
@@ -57,7 +62,7 @@ TEST_MODE_TEMPVAR = 'testTemperature'   -- fake humidity value, give it a test v
 PRINT_MODE = true				-- when true wil print output to log and send notifications
  
 if PRINT_MODE == true then
-print('Fan control')
+    print('Fan control')
 end
  
 -- get the global variables:
@@ -75,12 +80,12 @@ showerStarted = tonumber(uservariables['showerStarted'])           -- marker ind
 									                               -- cycle is the shower is started
 target = 0 -- will hold the target humidity when the program starts
  
--- get the current humidity value
+-- get the current humidity and temperature value
 if (TEST_MODE) then
     current = tonumber(uservariables[TEST_MODE_HUMVAR])
 else
     current = otherdevices_humidity[SENSOR_NAME]
-    curtemp = otherdevices_temperature[SENSOR_NAME]
+    curtemp = round(otherdevices_temperature[SENSOR_NAME],2)
 end
  
 -- check if the sensor is on or has some weird reading
@@ -105,6 +110,7 @@ end
 -- increase cycle counter
 humCounter = humCounter + 1
 
+-- ------------------------------------------------------------------------------------------------------------------- 
 -- If SAMPLE_INTERVAL=1, check will be executed everytime (i.e 1 minute) 
 if (humCounter >= SAMPLE_INTERVAL) then
  
@@ -173,7 +179,7 @@ if (humCounter >= SAMPLE_INTERVAL) then
             
             -- Starting the music
             commandArray[SPEAKER_NAME] = 'On'
-	        showerStarted=0
+	        showerStarted=1
             
 	        if PRINT_MODE == true then
             	print('Rise in humidity. Turning on the vents. Delta: ' .. delta)
@@ -181,7 +187,6 @@ if (humCounter >= SAMPLE_INTERVAL) then
             	commandArray['SendNotification'] = 'Ventilator and Music are on#The ventilator was activated at humidity level ' .. current .. '#0'
 	        end
         end
- 
     else
         if (fanMaxTimer > 0) then
             -- possible that someone started the ventilator manually
@@ -234,20 +239,20 @@ if (humCounter >= SAMPLE_INTERVAL) then
                if PRINT_MODE == true then
 			       print('Temperature delta: ' .. tempdelta)
 	           end
-
+               -- SPEAKER is ON, FAN is ON, SHOWER is ON (unless music was manually started)
                if (otherdevices[SPEAKER_NAME]=='On') then
-                   -- Music is already started, time limit was not exceed
+                   -- Music is already started, time limit was not exceeded.
                    -- In case a decrease in temperature is detected, stop the music, reset counter to 0
                	   showerStarted = showerStarted + 1
 
                	   if (tempdelta < TEMP_DELTA_TRIGGER_OFF) then
  			          -- Decrease was detected, stop the Speaker (this is the end of the shower)
-                      if PRINT_MODE == true then
-			             print('Decrease detected, stopping the music')
-                      end
-                	  commandArray[SPEAKER_NAME] = 'Off'
-                      commandArray['SendNotification'] = 'Shower is now stopped after ' .. showerStarted .. ' min'
+                      commandArray[SPEAKER_NAME] = 'Off'
                 	  showerStarted=0
+                      if PRINT_MODE == true then
+			             print('Decrease detected, Stopping the music')
+                         commandArray['SendNotification'] = 'Shower is now stopped after ' .. showerStarted .. ' min'
+                      end
                    else
 		              -- Check if we didn't reach the maxium music playing time
 		              -- and make sure to send notifications 
@@ -256,35 +261,50 @@ if (humCounter >= SAMPLE_INTERVAL) then
             	            commandArray['SendNotification'] = 'Music stopped and Buzzer alarm sent after ' .. showerStarted .. ' min'
                 	        commandArray[ALARM_NAME] = 'Buzzer'
                        elseif (showerStarted ==ALARMLEVEL2 ) then
-                	        commandArray[ALARM_NAME] = 'Alarme'
+                	        commandArray[ALARM_NAME] = 'Alerte'
             	            commandArray['SendNotification'] = 'Alarme sent after ' .. showerStarted .. ' min'
 	                   elseif (showerStarted ==ALARMLEVEL1 ) then
-                	        commandArray[ALARM_NAME] = 'Clock'
+                	        commandArray['Alarme'] = 'Clock'
             	            commandArray['SendNotification'] = 'Clock alarm sent after ' .. showerStarted .. ' min'
                        end	  
 		           end
-               else -- Speaker is off (shower is either stopped or max music cycle exceed) but fan on.
-               	   if (tempdelta > TEMP_DELTA_TRIGGER_ON and delta > 0 and showerStarted==0) then
+               else 
+               -- SPEAKER is OFF, FAN is ON
+               -- Shower is either stopped or max music cycle exceed
+               -- Still need to monitor for end of shower in case max music cycle was exceed but shower still on                           	   
+               	   if (tempdelta < TEMP_DELTA_TRIGGER_OFF and showerStarted>0) then
+ 			          -- Decrease was detected (this is the end of the shower)
+                	 showerStarted=0
+                     if PRINT_MODE == true then
+			             print('Decrease detected - Shower ended')
+                         commandArray['SendNotification'] = 'Shower is now stopped after ' .. showerStarted .. ' min'
+                      end
+                     elseif (tempdelta > TEMP_DELTA_TRIGGER_ON and delta > 0 and showerStarted==0) then
+                     -- New SHower detected
                      -- Music is off and shower was stoppped, temperature increase detected and humitidy still rising.
                      -- Let's start the music again, considering this is a new/different shower.
-		             print('New major Temperature increase detected')
                      commandArray[SPEAKER_NAME] = 'On'
-            	     commandArray['SendNotification'] = 'Music is on , temperature increase detected' .. tempdelta
-	                 showerStarted=0 -- reset counter
+                     --reset counter to measure shower duration
+	                 showerStarted=1
+                     if PRINT_MODE == true then
+		                print('New major Temperature increase detected')
+            	        commandArray['SendNotification'] = 'Music is on again, temperature increase detected' .. tempdelta
+                      end
                    elseif (showerStarted > 0) then 
                      -- Music is off (max playing time was reached!) but shower is still on
                      -- keep the music off but increment duration of the shower.
                	     showerStarted = showerStarted + 1
-		     print('Maximum shower time exceed. Shower on since ' .. showerStarted .. ' min')
+		             print('Maximum shower time exceed. Shower is ON since ' .. showerStarted .. ' min')
                    else
-                     -- Shower is off, not major increase detected - nothing to do
+                     -- Shower is off, no major increase detected - nothing to do
                      msg ='fan is ON, doing its job - nobody is in the shower'
                    end
                end -- end else speaker is off (and fan on)
             end -- end else humitidy target not reached yet
         end
-    end
- 
+    end -- end fanFollowProgram is on.
+end -- end humCounter
+-- ------------------------------------------------------------------------------------------------------------------- 
 if PRINT_MODE == true then
     print('New values >>>>>>>>>>>')
     print('humidityTmin5: ' .. humidityTmin5)
