@@ -43,16 +43,14 @@ SAMPLE_INTERVAL = 1                 -- time in minutes when a the script logic w
 FAN_DELTA_TRIGGER = 2               -- rise in humidity that will trigger the fan
 TEMP_DELTA_TRIGGER_OFF = -0.1       -- decrease in temperature that will stop the  music
 TEMP_DELTA_TRIGGER_ON = 0.1         -- increase in temperature that will start the  music
-MAX_MUSIC_CYCLES = 12               -- maximum amount of sample cycles the music can be on
+MAX_MUSIC_CYCLES = 11               -- maximum amount of sample cycles the music can be on
 ALARMLEVEL1 = 5 	            
 ALARMLEVEL2 = 8                
-MAX_MUSIC_CYCLES = 15                -- maximum amount of sample cycles the music can be on
 FAN_MAX_TIME = 120                  --  maximum amount of sample cycles the fan can be on, 
                                     -- in case we never reach the target humidity
 TARGET_OFFSET = 2                   -- ventilator goes off if target+offset is reached 
                                     -- (maybe it takes too long to reach the true target due to wet towels etc)
 FAN_NAME = 'VMC'                    -- exact device name of the switch turning on/off the ventilator
-ALARM_NAME = 'Alarme'               -- exact device name of the switch turning on/off the alert jingles
 SPEAKER_NAME = 'SpeakerDouche'      -- exact device name of the switch turning on/off the music
 SENSOR_NAME = 'Douche'              -- exact device name of the humidity and temperature sensor
  
@@ -248,23 +246,29 @@ if (humCounter >= SAMPLE_INTERVAL) then
                	   if (tempdelta < TEMP_DELTA_TRIGGER_OFF) then
  			          -- Decrease was detected, stop the Speaker (this is the end of the shower)
                       commandArray[SPEAKER_NAME] = 'Off'
-                	  showerStarted=0
                       if PRINT_MODE == true then
 			             print('Decrease detected, Stopping the music')
                          commandArray['SendNotification'] = 'Shower is now stopped after ' .. showerStarted .. ' min'
                       end
-                   else
+                	  showerStarted=0
+                    else
 		              -- Check if we didn't reach the maxium music playing time
 		              -- and make sure to send notifications 
                       if (showerStarted == MAX_MUSIC_CYCLES) then
                 		    commandArray[SPEAKER_NAME] = 'Off'
             	            commandArray['SendNotification'] = 'Music stopped and Buzzer alarm sent after ' .. showerStarted .. ' min'
-                	        commandArray[ALARM_NAME] = 'Buzzer'
+                	        commandArray['ClockAlert'] = 'Off'
+                	        commandArray['AlarmeAlert'] = 'Off'
+                	        commandArray['BuzzerAlert'] = 'On'
                        elseif (showerStarted ==ALARMLEVEL2 ) then
-                	        commandArray[ALARM_NAME] = 'Alerte'
+                	        commandArray['ClockAlert'] = 'Off'
+                	        commandArray['AlarmeAlert'] = 'On'
+                	        commandArray['BuzzerAlert'] = 'Off'
             	            commandArray['SendNotification'] = 'Alarme sent after ' .. showerStarted .. ' min'
 	                   elseif (showerStarted ==ALARMLEVEL1 ) then
-                	        commandArray['Alarme'] = 'Clock'
+                	        commandArray['ClockAlert'] = 'On'
+                	        commandArray['AlarmeAlert'] = 'Off'
+                	        commandArray['BuzzerAlert'] = 'Off'
             	            commandArray['SendNotification'] = 'Clock alarm sent after ' .. showerStarted .. ' min'
                        end	  
 		           end
