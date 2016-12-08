@@ -226,18 +226,21 @@ def refresh_screen(type,mode):
         draw.text( (5, 40) , "Nono: "+val_tchbrnono, font=font_big, fill=0)
         draw.text( (5, 80) , "Grenier: "+val_tgrenier, font=font_big, fill=0)
     elif mode == 3:
-        draw.text( (0, 40) , val_wcoynelle, font=font_big,fill=0)
-        draw.text( (30, 90) , "[" + val_wmax + "] max", font=font_title, fill=0)
+        draw.text( (5, 40) , "TV: "+val_ttv, font=font_big, fill=0)
+        draw.text( (5, 80) , "Douche: "+val_tdouche, font=font_big, fill=0)
     elif mode == 4:
+        draw.text( (5, 40) , "Salon: "+val_tsalon, font=font_big, fill=0)
+        draw.text( (5, 80) , "TV: "+val_ttv, font=font_big, fill=0)
+    elif mode == 5:
+        draw.text( (5, 40) , val_wcoynelle, font=font_big,fill=0)
+        draw.text( (30, 90) , "[" + val_wmax + "] max", font=font_title, fill=0)
+    elif mode == 6:
         draw.text( (0, 0) , "Exterieur: "+val_text, font=font_title, fill=0)
         draw.text( (0, 32) , "Salon: "+val_tsalon, font=font_values, fill=0)
         draw.text( (0, 57) , "TV: "+val_ttv, font=font_values, fill=0)
         draw.text( (0, 82) , "Douche: "+val_tdouche, font=font_values, fill=0)
         draw.text( (0, 107) , "Grenier: "+val_tgrenier, font=font_values, fill=0)
         draw.text( (0, 132) ,"Nono: "+val_tchbrnono, font=font_values, fill=0)
-    elif mode == 5:
-        draw.text( (5, 40) , "TV: "+val_ttv, font=font_big, fill=0)
-        draw.text( (5, 80) , "Douche: "+val_tdouche, font=font_big, fill=0)
     elif mode == 7:
         chrono = chronoend - datetime.now()
         if chrono < timedelta(minutes = 0):
@@ -289,10 +292,10 @@ def main():
             refresh_screen('full',current_mode)
             count = 0
 
-      # mode in between 1 and 4, switch to display temp and wind from domoticz
+      # mode in between 1 and 6, switch to display temp and wind from domoticz
         if GPIO.input(SW4) == False:
             current_mode = current_mode +1
-            if current_mode == 6:
+            if current_mode == 7:
                current_mode = 1
             refresh_screen('full',current_mode)
             count = 0
