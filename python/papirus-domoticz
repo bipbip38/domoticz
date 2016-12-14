@@ -183,7 +183,10 @@ def strfdelta(tdelta, fmt):
     t = DeltaTemplate(fmt)
     return t.substitute(**d)
 
-def refresh_screen(type,mode):
+## ------------------------------------------------------------------------------
+## Screen refresh function for Mode 1 to 6 (Wind and Temperature)   
+
+def refresh_screen1_6(type,mode):
     global pexter 
     global ptv 
     global pgrenier
@@ -241,20 +244,12 @@ def refresh_screen(type,mode):
         draw.text( (0, 82) , "Douche: "+val_tdouche, font=font_values, fill=0)
         draw.text( (0, 107) , "Grenier: "+val_tgrenier, font=font_values, fill=0)
         draw.text( (0, 132) ,"Nono: "+val_tchbrnono, font=font_values, fill=0)
-    elif mode == 7:
-        chrono = chronoend - datetime.now()
-        if chrono < timedelta(minutes = 0):
-            chronotxt = strfdelta(chrono,'%M:%S')
-        else:
-            chronotxt = 'GAME OVER !'
-        draw.text( (0, 40) , chronotxt, font=font_big, fill=0)
     else:
         draw.text( (0, 40) , "something went wrong !", font=font_values, fill=0)
 
 
     now = datetime.now().strftime('%d %b %H:%M')
     draw.text( (0, 152) , "mode "+str(mode)+ " / "+now , font=font_small, fill=0)
-#    print "screen will be refreshed with mode:"+str(mode)
 
     papirus.display(image)
 
@@ -263,6 +258,50 @@ def refresh_screen(type,mode):
     else:
         papirus.partial_update()
 
+## ------------------------------------------------------------------------------
+## Screen refresh function for Mode 7 to 10 (Humidity Control)        
+def refresh_screen7_10(type,mode):
+    # If humCOunter=1 Then
+    #     get ShowerStarted
+    #     if showerStarted > 0
+    #         display time & liters
+    #     else
+    #         display temp & humidity of the shower
+    #
+    valtxt = 'MODE=' + str(mode)
+    draw.text( (0, 40) , valtxt, font=font_xbig, fill=0)
+
+    now = datetime.now().strftime('%d %b %H:%M')
+    draw.text( (0, 152) , "mode "+str(mode)+ " / "+now , font=font_small, fill=0)
+
+    papirus.display(image)
+
+    if type == 'full':
+        papirus.update()
+    else:
+        papirus.partial_update()
+        
+## ------------------------------------------------------------------------------
+## Screen refresh function for Mode 1 to 6 (Wind and Temperature)          
+def refresh_screen11(type,mode):
+    chrono = chronoend - datetime.now()
+    if chrono < timedelta(minutes = 0):
+        chronotxt = strfdelta(chrono,'%M:%S')
+    else:
+        chronotxt = 'GAME OVER !'
+    draw.text( (0, 40) , chronotxt, font=font_big, fill=0)
+    else:
+        draw.text( (0, 40) , "something went wrong !", font=font_values, fill=0)
+
+    now = datetime.now().strftime('%d %b %H:%M')
+    draw.text( (0, 152) , "mode "+str(mode)+ " / "+now , font=font_small, fill=0)
+
+    papirus.display(image)
+
+    if type == 'full':
+        papirus.update()
+    else:
+        papirus.partial_update()
 
 
 ##### MAIN ######
@@ -278,50 +317,71 @@ def main():
 
     ## Initially display mode 1 ...
     current_mode=1
-    refresh_screen('full',current_mode)
+    refresh_screen1_6('full',current_mode)
 
     ## set all current temp to 0 for trend 
     count = 0
 
     # ... then monitor button status to switch mode or refresh screen 
     # partially every 5 minutes to display up to date measures
+    
     while True:
-      # Force Display with all temp and wind from domoticz 
-        if GPIO.input(SW1) == False:
-            current_mode = 1
-            refresh_screen('full',current_mode)
-            count = 0
 
-      # mode in between 1 and 6, switch to display temp and wind from domoticz
+        # Mode in between 1 and 6: switch to display Temperature and Wind from domoticz
+        # This is button on the UPPER LEFT of the screen
+        # Screen will be refreshed every 5 minutes
         if GPIO.input(SW4) == False:
-            current_mode = current_mode +1
-            if current_mode == 7:
-               current_mode = 1
-            refresh_screen('full',current_mode)
+            if current_mode > 0 & current_mode <6:
+               current_mode = current_mode +1
+            else:
+               current_mode=1
+            refresh_screen1_6('full',current_mode)
             count = 0
-
-      # Not implemented yet
+            
+        # Mode in between 7 and 10: use along with the humidity control of the shower.
+        # This is the SECOND button FROM THE LEFT
+        # Screen will be refreshed every minute
+        if GPIO.input(SW3) == False:
+            if current_mode > 6 & current_mode <10:
+               current_mode = current_mode +1
+            else:
+               current_mode =7
+            refresh_screen7_10('full',current_mode)
+            count = 0
+            
+        # Mode = 11
+        # Not implemented yet
+        # This is the THIRD button FROM THE LEFT
+        # Screen will be refreshed every second
         if GPIO.input(SW2) == False:
-            current_mode =7 
+            current_mode =11
             duration= timedelta(minutes = 3)
             chronoend = datetime.now() + duration
-            refresh_screen('full',current_mode)
+            refresh_screen11('full',current_mode)
             count = 0
 
-        if GPIO.input(SW3) == False:
-            current_mode = 8 
-            refresh_screen('full',current_mode)
+        # This is button on the UPPER RIGHT of the screen
+        # Mode = 1
+        # Force Display with all temp and wind from domoticz 
+        if GPIO.input(SW1) == False:
+            current_mode = 1
+            refresh_screen1_6('full',current_mode)
             count = 0
+            
+        # mode [1-6] Refresh screen with current values from domoticz every ~5 minutes
+        # mode [7-10] Refresh screen with current values from domoticz every ~1 minutes
+        # mode [11]  Refresh every 1 sec
 
-        # Refresh screen with current values from domoticz every ~5 minutes
-        # unless mode=6 to refresh every 1 sec
         count = count + 1
-        if current_mode == 7 & count > 10:
+        if current_mode == 11 & count > 10:
             count = 0
-            refresh_screen('partial',current_mode)
-        elif count > 3000:
+            refresh_screen11('partial',current_mode)
+        elif current_mode >=1 & current_mode <=6 & count > 3000:
             count = 0
-            refresh_screen('partial',current_mode)
+            refresh_screen1_6('partial',current_mode)
+        elif current_mode >=7 & current_mode <=10 & count > 600:
+            count = 0
+            refresh_screen7_10('partial',current_mode)    
         time.sleep(0.1)
 
 if __name__ == '__main__':
