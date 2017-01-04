@@ -103,6 +103,7 @@ pgrenier = 0
 pchbrnono = 0
 psalon = 0
 pdouche = 0
+phdouche = 0
 ########### Domoticz Virtual Widget  FUNCTION ########
 
 def upd_variable (var,val):
@@ -115,7 +116,7 @@ def upd_variable (var,val):
      
 def get_temp (idx,prev_value):
     # domoticz URL to get value from a device:
-    # https://alpage.ddns.net/json.htm?type=devices&rid=20
+    # https://server/json.htm?type=devices&rid=20
     # see https://www.domoticz.com/wiki/Domoticz_API/
 
     json_url_text='/json.htm?type=devices&rid='
@@ -145,9 +146,41 @@ def get_temp (idx,prev_value):
         print "Error ("+str(status)+") reading data from Domoticz API using request: "+dz_request
         return 'ER-PD-001',-1
 
+def get_hum (idx,prev_value):
+    # domoticz URL to get value from a device:
+    # https://server/json.htm?type=devices&rid=20
+    # see https://www.domoticz.com/wiki/Domoticz_API/
+
+    json_url_text='/json.htm?type=devices&rid='
+
+    dz_request='http://'+dz_ip+':'+dz_port+json_url_text+idx
+
+    r=requests.get(dz_request,auth=HTTPBasicAuth(dz_user,dz_password))
+
+    status=r.status_code
+    if status == 200:
+    # API send 200 if everything is OK
+        response=r.json()
+        temp_value=response['result'][0]['Humidity']
+        if temp_value > prev_value:
+            trend_str=' +'
+        elif temp_value < prev_value:
+            trend_str=' -'
+        else:
+            trend_str=''
+
+        temp_valid=response['result'][0]['HaveTimeout']
+        if temp_valid:
+          return str(temp_value)+u'\u0025C'+ '(!)',temp_value
+        else:
+          return str(temp_value)+u'\u0025C'+trend_str,temp_value
+    else:
+        print "Error ("+str(status)+") reading data from Domoticz API using request: "+dz_request
+        return 'ER-PD-003',-1
+
 def get_wind (idx):
     # domoticz URL to get value from a device:
-    # https://alpage.ddns.net/json.htm?type=devices&rid=20
+    # https://server/json.htm?type=devices&rid=20
     # see https://www.domoticz.com/wiki/Domoticz_API/
 
     json_url_text='/json.htm?type=devices&rid='
@@ -169,6 +202,27 @@ def get_wind (idx):
     else:
         print "Error ("+str(status)+") reading data from Domoticz API using request: "+pi_request
         return 'ER-PD-002','ER-PD_002'
+
+def get_var (idx):
+    # domoticz URL to get value from a device:
+    # https://server/json.htm?type=command&param=getuservariable&idx=11
+
+    json_url_text='/json.htm?type=command&param=getuservariable&idx='
+
+    dz_request='http://'+dz_ip+':'+dz_port+json_url_text+idx
+
+    r=requests.get(dz_request,auth=HTTPBasicAuth(dz_user,dz_password))
+
+    status=r.status_code
+    if status == 200:
+    # API send 200 if everything is OK
+        response=r.json()
+        var_value=response['result'][0]['value']
+        return str(var_value)
+
+    else:
+        print "Error ("+str(status)+") reading data from Domoticz API using request: "+dz_request
+        return 'ER-PD-004'
 
 class DeltaTemplate(Template):
     delimiter = "%"
@@ -193,6 +247,7 @@ def refresh_screen1_6(type,mode):
     global pchbrnono 
     global psalon 
     global pdouche 
+    global phdouche 
 
 
     # Get latest values from Domoticz
@@ -203,10 +258,11 @@ def refresh_screen1_6(type,mode):
     val_tsalon,tsalon = get_temp(dz_tsalon_idx,psalon)
     psalon = tsalon
     val_tgrenier,tgrenier = get_temp(dz_tgrenier_idx,pgrenier)
-
     pgrenier = tgrenier
     val_tdouche,tdouche = get_temp(dz_tdouche_idx,pdouche)
     pdouche = tdouche
+    val_hdouche,hdouche = get_hum(dz_tdouche_idx,phdouche)
+    phdouche = hdouche
     val_tchbrnono,tchbrnono = get_temp(dz_tchbrnono_idx,pchbrnono)
     pchbrnono = tchbrnono
     val_wcoynelle,val_wmax = get_wind(dz_pioupiou_idx)
@@ -261,15 +317,29 @@ def refresh_screen1_6(type,mode):
 ## ------------------------------------------------------------------------------
 ## Screen refresh function for Mode 7 to 10 (Humidity Control)        
 def refresh_screen7_10(type,mode):
-    # If humCOunter=1 Then
-    #     get ShowerStarted
-    #     if showerStarted > 0
-    #         display time & liters
-    #     else
-    #         display temp & humidity of the shower
-    #
-    valtxt = 'MODE=' + str(mode)
-    draw.text( (0, 40) , valtxt, font=font_xbig, fill=0)
+    global pdouche 
+    global phdouche 
+
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font_xbig = ImageFont.truetype(font_path, 50)
+    font_big = ImageFont.truetype(font_path, 30)
+    font_title = ImageFont.truetype(font_path, 20)
+    font_values = ImageFont.truetype(font_path, 16)
+    font_small = ImageFont.truetype(font_path, 12)
+
+    val_tdouche,tdouche = get_temp(dz_tdouche_idx,pdouche)
+    pdouche = tdouche
+    val_hdouche,hdouche = get_hum(dz_tdouche_idx,phdouche)
+    phdouche = hdouche
+
+    val_ddouche = get_var(11)
+
+    # initially set all white background
+    image = Image.new('1', papirus.size, 1)
+    draw = ImageDraw.Draw(image)
+
+    draw.text( (0, 40) , val_hdouche, font=font_big, fill=0)
+    draw.text( (5, 80) , val_ddouche, font=font_big, fill=0)
 
     now = datetime.now().strftime('%d %b %H:%M')
     draw.text( (0, 152) , "mode "+str(mode)+ " / "+now , font=font_small, fill=0)
@@ -282,16 +352,26 @@ def refresh_screen7_10(type,mode):
         papirus.partial_update()
         
 ## ------------------------------------------------------------------------------
-## Screen refresh function for Mode 1 to 6 (Wind and Temperature)          
+## Screen refresh function for Mode 11
 def refresh_screen11(type,mode):
+
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font_xbig = ImageFont.truetype(font_path, 50)
+    font_big = ImageFont.truetype(font_path, 30)
+    font_title = ImageFont.truetype(font_path, 20)
+    font_values = ImageFont.truetype(font_path, 16)
+    font_small = ImageFont.truetype(font_path, 12)
+
+    # initially set all white background
+    image = Image.new('1', papirus.size, 1)
+    draw = ImageDraw.Draw(image)
+
     chrono = chronoend - datetime.now()
     if chrono < timedelta(minutes = 0):
         chronotxt = strfdelta(chrono,'%M:%S')
     else:
         chronotxt = 'GAME OVER !'
     draw.text( (0, 40) , chronotxt, font=font_big, fill=0)
-    else:
-        draw.text( (0, 40) , "something went wrong !", font=font_values, fill=0)
 
     now = datetime.now().strftime('%d %b %H:%M')
     draw.text( (0, 152) , "mode "+str(mode)+ " / "+now , font=font_small, fill=0)
@@ -331,21 +411,21 @@ def main():
         # This is button on the UPPER LEFT of the screen
         # Screen will be refreshed every 5 minutes
         if GPIO.input(SW4) == False:
-            if current_mode > 0 & current_mode <6:
-               current_mode = current_mode +1
+            if (current_mode > 0 and current_mode <6):
+            	current_mode = current_mode +1
             else:
-               current_mode=1
+            	current_mode=1
             refresh_screen1_6('full',current_mode)
             count = 0
             
         # Mode in between 7 and 10: use along with the humidity control of the shower.
         # This is the SECOND button FROM THE LEFT
         # Screen will be refreshed every minute
-        if GPIO.input(SW3) == False:
-            if current_mode > 6 & current_mode <10:
-               current_mode = current_mode +1
+        elif GPIO.input(SW3) == False:
+            if (current_mode > 6 and current_mode <10):
+            	current_mode = current_mode +1
             else:
-               current_mode =7
+            	current_mode =7
             refresh_screen7_10('full',current_mode)
             count = 0
             
@@ -353,7 +433,7 @@ def main():
         # Not implemented yet
         # This is the THIRD button FROM THE LEFT
         # Screen will be refreshed every second
-        if GPIO.input(SW2) == False:
+        elif GPIO.input(SW2) == False:
             current_mode =11
             duration= timedelta(minutes = 3)
             chronoend = datetime.now() + duration
@@ -363,23 +443,28 @@ def main():
         # This is button on the UPPER RIGHT of the screen
         # Mode = 1
         # Force Display with all temp and wind from domoticz 
-        if GPIO.input(SW1) == False:
+        elif GPIO.input(SW1) == False:
             current_mode = 1
             refresh_screen1_6('full',current_mode)
             count = 0
-            
+
+        # Check if Mode has to be automatically switch based on Domoticz variable
+        else
+            # Get showerStarted variable 
+            current_mode = 7
+
         # mode [1-6] Refresh screen with current values from domoticz every ~5 minutes
         # mode [7-10] Refresh screen with current values from domoticz every ~1 minutes
         # mode [11]  Refresh every 1 sec
 
         count = count + 1
-        if current_mode == 11 & count > 10:
+        if (current_mode == 11 and count > 10):
             count = 0
             refresh_screen11('partial',current_mode)
-        elif current_mode >=1 & current_mode <=6 & count > 3000:
+        elif (current_mode >=1 and current_mode <=6 and count > 3000):
             count = 0
             refresh_screen1_6('partial',current_mode)
-        elif current_mode >=7 & current_mode <=10 & count > 600:
+        elif (current_mode >=7 and current_mode <=10 and count > 600):
             count = 0
             refresh_screen7_10('partial',current_mode)    
         time.sleep(0.1)
