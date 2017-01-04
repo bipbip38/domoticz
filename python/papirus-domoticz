@@ -217,7 +217,7 @@ def get_var (idx):
     if status == 200:
     # API send 200 if everything is OK
         response=r.json()
-        var_value=response['result'][0]['value']
+        var_value=response['result'][0]['Value']
         return str(var_value)
 
     else:
@@ -332,7 +332,7 @@ def refresh_screen7_10(type,mode):
     val_hdouche,hdouche = get_hum(dz_tdouche_idx,phdouche)
     phdouche = hdouche
 
-    val_ddouche = get_var(11)
+    val_ddouche = get_var("11")
 
     # initially set all white background
     image = Image.new('1', papirus.size, 1)
@@ -449,9 +449,9 @@ def main():
             count = 0
 
         # Check if Mode has to be automatically switch based on Domoticz variable
-        else
-            # Get showerStarted variable 
-            current_mode = 7
+        #else:
+        # Get showerStarted variable 
+        # current_mode = 7
 
         # mode [1-6] Refresh screen with current values from domoticz every ~5 minutes
         # mode [7-10] Refresh screen with current values from domoticz every ~1 minutes
