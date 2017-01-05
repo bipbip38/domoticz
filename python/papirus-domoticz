@@ -88,7 +88,8 @@ dz_tsalon_idx=config.get('global','dz_tsalon_idx')
 dz_tdouche_idx=config.get('global','dz_tdouche_idx')
 #Wind
 dz_pioupiou_idx=config.get('global','dz_pioupiou_idx')
-
+# Variables
+dz_showerStarted_idx=config.get('global','dz_showerStarted_idx')
 ##################  ENd of Parameters ######################
 
 ### Request domoticz api server to get data for the given device 
@@ -139,7 +140,7 @@ def get_temp (idx,prev_value):
 
         temp_valid=response['result'][0]['HaveTimeout']
         if temp_valid:
-          return str(temp_value)+u'\u00B0C'+ '(!)',temp_value
+          return str(temp_value)+u'\u00B0C'+ ' (!)',temp_value
         else:
           return str(temp_value)+u'\u00B0C'+trend_str,temp_value
     else:
@@ -171,9 +172,9 @@ def get_hum (idx,prev_value):
 
         temp_valid=response['result'][0]['HaveTimeout']
         if temp_valid:
-          return str(temp_value)+u'\u0025C'+ '(!)',temp_value
+          return str(temp_value)+u'\u0025'+ ' (!)',temp_value
         else:
-          return str(temp_value)+u'\u0025C'+trend_str,temp_value
+          return str(temp_value)+u'\u0025'+trend_str,temp_value
     else:
         print "Error ("+str(status)+") reading data from Domoticz API using request: "+dz_request
         return 'ER-PD-003',-1
@@ -204,7 +205,7 @@ def get_wind (idx):
         return 'ER-PD-002','ER-PD_002'
 
 def get_var (idx):
-    # domoticz URL to get value from a device:
+    # domoticz URL to get user variable value:
     # https://server/json.htm?type=command&param=getuservariable&idx=11
 
     json_url_text='/json.htm?type=command&param=getuservariable&idx='
@@ -332,24 +333,27 @@ def refresh_screen7_10(type,mode):
     val_hdouche,hdouche = get_hum(dz_tdouche_idx,phdouche)
     phdouche = hdouche
 
+    # Get shower duration in minutes  
     val_ddouche = get_var("11")
 
-    # initially set all white background
-    image = Image.new('1', papirus.size, 1)
-    draw = ImageDraw.Draw(image)
+    # Only refresh screen if duration is > 0 
+    if val_ddouche !="0":
+        # initially set all white background
+        image = Image.new('1', papirus.size, 1)
+        draw = ImageDraw.Draw(image)
 
-    draw.text( (0, 40) , val_hdouche, font=font_big, fill=0)
-    draw.text( (5, 80) , val_ddouche, font=font_big, fill=0)
+        draw.text( (0, 40) , val_hdouche, font=font_big, fill=0)
+        draw.text( (5, 80) , val_ddouche+" minutes", font=font_xbig, fill=0)
 
-    now = datetime.now().strftime('%d %b %H:%M')
-    draw.text( (0, 152) , "mode "+str(mode)+ " / "+now , font=font_small, fill=0)
+        now = datetime.now().strftime('%d %b %H:%M')
+        draw.text( (0, 152) , now , font=font_title, fill=0)
 
-    papirus.display(image)
+        papirus.display(image)
 
-    if type == 'full':
-        papirus.update()
-    else:
-        papirus.partial_update()
+        if type == 'full':
+           papirus.update()
+        else:
+           papirus.partial_update()
         
 ## ------------------------------------------------------------------------------
 ## Screen refresh function for Mode 11
