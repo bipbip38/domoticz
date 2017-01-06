@@ -57,13 +57,17 @@ dz_idx=config.get('global','dz_pioupiou_idx')
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 pi_ip='api.pioupiou.fr'
 pi_port='80'
+## Coynelle
 #pi_stationid='178'
+## Connest
+#pi_stationid='380'
 ## Pierre Plantee
 pi_stationid='378'
 pi_url='/v1/live/'
 pi_request='http://'+pi_ip+':'+pi_port+pi_url+pi_stationid
 
 # Define the delay until we consider measure is outdated
+# set by default to 1 hour
 offsetdays=0
 offsethours=-1
 ##################  ENd of Parameters ######################
@@ -174,7 +178,7 @@ if status == 200:
     # WD = Wind direction (S, SW, NNW, etc.)
     val_wd=deg_to_direction(pi_wind_head)
 
-# Check how fresh is the measure before sending to domoticz (<1 hour by default).
+# Check how fresh is the measure before sending it to domoticz (<1 hour by default).
     limit_date = datetime.utcnow() +  timedelta (days=offsetdays,hours=offsethours)
     if (pi_wind_date > limit_date):
         # Prepare svalue as expected by the Wind Virtual Sensor (svalue=WB;WD;WS;WG;22;24)
