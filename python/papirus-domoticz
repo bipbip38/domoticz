@@ -220,7 +220,6 @@ def get_var (idx):
         response=r.json()
         var_value=response['result'][0]['Value']
         return str(var_value)
-
     else:
         print "Error ("+str(status)+") reading data from Domoticz API using request: "+dz_request
         return 'ER-PD-004'
@@ -337,16 +336,16 @@ def refresh_screen7_10(type,mode):
     val_ddouche = get_var("11")
 
     # Only refresh screen if duration is > 0 
-    if val_ddouche !="0":
+    if val_ddouche !='0':
         # initially set all white background
         image = Image.new('1', papirus.size, 1)
         draw = ImageDraw.Draw(image)
 
-        draw.text( (0, 40) , val_hdouche, font=font_big, fill=0)
+        draw.text( (5, 40) , val_hdouche, font=font_big, fill=0)
         draw.text( (5, 80) , val_ddouche+" minutes", font=font_xbig, fill=0)
 
         now = datetime.now().strftime('%d %b %H:%M')
-        draw.text( (0, 152) , now , font=font_title, fill=0)
+        draw.text( (5, 152) , now , font=font_title, fill=0)
 
         papirus.display(image)
 
