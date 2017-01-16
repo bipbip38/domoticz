@@ -103,6 +103,7 @@ ptv = 0
 pgrenier = 0
 pchbrnono = 0
 psalon = 0
+pddouche = 0
 pdouche = 0
 phdouche = 0
 ########### Domoticz Virtual Widget  FUNCTION ########
@@ -305,7 +306,7 @@ def refresh_screen1_6(type,mode):
 
 
     now = datetime.now().strftime('%d %b %H:%M')
-    draw.text( (0, 152) , "mode "+str(mode)+ " / "+now , font=font_small, fill=0)
+    draw.text( (0, 152) , "mode "+str(mode)+ " / "+now , font=font_values, fill=0)
 
     papirus.display(image)
 
@@ -319,10 +320,11 @@ def refresh_screen1_6(type,mode):
 def refresh_screen7_10(type,mode):
     global pdouche 
     global phdouche 
+    global pddouche 
 
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-    font_xbig = ImageFont.truetype(font_path, 50)
-    font_big = ImageFont.truetype(font_path, 30)
+    font_xbig = ImageFont.truetype(font_path, 40)
+    font_big = ImageFont.truetype(font_path, 25)
     font_title = ImageFont.truetype(font_path, 20)
     font_values = ImageFont.truetype(font_path, 16)
     font_small = ImageFont.truetype(font_path, 12)
@@ -334,25 +336,32 @@ def refresh_screen7_10(type,mode):
 
     # Get shower duration in minutes  
     val_ddouche = get_var("11")
-
-    # Only refresh screen if duration is > 0 
     if val_ddouche !='0':
+      pddouche=val_ddouche
+  
+    # Only refresh screen if duration is > 0 
         # initially set all white background
-        image = Image.new('1', papirus.size, 1)
-        draw = ImageDraw.Draw(image)
+    image = Image.new('1', papirus.size, 1)
+    draw = ImageDraw.Draw(image)
 
-        draw.text( (5, 40) , val_hdouche, font=font_big, fill=0)
-        draw.text( (5, 80) , val_ddouche+" minutes", font=font_xbig, fill=0)
+    if val_ddouche !='0':
+        draw.text( (70,5 ) , 'ON', font=font_xbig, fill=0)
+        draw.text( (5, 55) , val_tdouche+'/'+val_hdouche, font=font_big, fill=0)
+        draw.text( (5, 85) , val_ddouche+' minutes', font=font_xbig, fill=0)
+    else:
+        draw.text( (70,5 ) , 'OFF', font=font_xbig, fill=0)
+        draw.text( (5, 55) , val_tdouche+'/'+val_hdouche, font=font_big, fill=0)
+        draw.text( (5, 85) ,'['+pddouche+']' , font=font_big, fill=0)
 
-        now = datetime.now().strftime('%d %b %H:%M')
-        draw.text( (5, 152) , now , font=font_title, fill=0)
+    now = datetime.now().strftime('%d %b %H:%M')
+    draw.text( (5, 152) , now , font=font_title, fill=0)
 
-        papirus.display(image)
+    papirus.display(image)
 
-        if type == 'full':
-           papirus.update()
-        else:
-           papirus.partial_update()
+    if type == 'full':
+          papirus.update()
+    else:
+          papirus.partial_update()
         
 ## ------------------------------------------------------------------------------
 ## Screen refresh function for Mode 11
