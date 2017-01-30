@@ -257,11 +257,13 @@ if (humCounter >= SAMPLE_INTERVAL) then
 		              -- Check if we didn't reach the maxium music playing time
 		              -- and make sure to send notifications 
                       if (showerStarted == MAX_MUSIC_CYCLES) then
-                		    commandArray[SPEAKER_NAME] = 'Off'
+                	        commandArray[SPEAKER_NAME] = 'Off'
                 	        commandArray['ClockAlert'] = 'Off'
                 	        commandArray['AlarmeAlert'] = 'Off'
                 	        commandArray['BuzzerAlert'] = 'On'
-                            commandArray['SendNotification'] = 'Music stopped and Buzzer alarm sent after ' .. showerStarted .. ' min'
+                               if PRINT_MODE == true then
+                            		commandArray['SendNotification'] = 'Music stopped and Buzzer alarm sent after ' .. showerStarted .. ' min'
+				end
                        elseif (showerStarted ==ALARMLEVEL2 ) then
                 	        commandArray['ClockAlert'] = 'Off'
                 	        commandArray['AlarmeAlert'] = 'On'

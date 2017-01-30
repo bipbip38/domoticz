@@ -24,8 +24,8 @@ if [ "$#" -eq  "0" ]
   then
     echo "No arguments supplied (one of : clock, buzzer, alarm, military,siren"
 else
-  mpc volume 85
+  mpc volume 75
   /usr/bin/mpg123 /home/pi/mp3/alarm/$filename >/dev/null 2>&1
-  mpc volume 95
+  mpc volume 90
 
 fi
