@@ -87,7 +87,8 @@ dz_tchbrnono_idx=config.get('global','dz_tchbrnono_idx')
 dz_tsalon_idx=config.get('global','dz_tsalon_idx')
 dz_tdouche_idx=config.get('global','dz_tdouche_idx')
 #Wind
-dz_pioupiou_idx=config.get('global','dz_pioupiou_idx')
+dz_piou178_idx=config.get('global','dz_piou178_idx')
+dz_piou378_idx=config.get('global','dz_piou378_idx')
 # Variables
 dz_showerStarted_idx=config.get('global','dz_showerStarted_idx')
 ##################  ENd of Parameters ######################
@@ -266,7 +267,8 @@ def refresh_screen1_6(type,mode):
     phdouche = hdouche
     val_tchbrnono,tchbrnono = get_temp(dz_tchbrnono_idx,pchbrnono)
     pchbrnono = tchbrnono
-    val_wcoynelle,val_wmax = get_wind(dz_pioupiou_idx)
+    val_wcoynelle,val_wcoymax = get_wind(dz_piou178_idx)
+    val_wsenepi,val_wsenmax = get_wind(dz_piou378_idx)
 
     # initially set all white background
     image = Image.new('1', papirus.size, 1)
@@ -275,6 +277,7 @@ def refresh_screen1_6(type,mode):
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_xbig = ImageFont.truetype(font_path, 50)
     font_big = ImageFont.truetype(font_path, 30)
+    font_xtitle = ImageFont.truetype(font_path, 25)
     font_title = ImageFont.truetype(font_path, 20)
     font_values = ImageFont.truetype(font_path, 16)
     font_small = ImageFont.truetype(font_path, 12)
@@ -292,8 +295,10 @@ def refresh_screen1_6(type,mode):
         draw.text( (5, 40) , "Salon: "+val_tsalon, font=font_big, fill=0)
         draw.text( (5, 80) , "TV: "+val_ttv, font=font_big, fill=0)
     elif mode == 5:
-        draw.text( (5, 40) , val_wcoynelle, font=font_big,fill=0)
-        draw.text( (30, 90) , "[" + val_wmax + "] max", font=font_title, fill=0)
+        draw.text( (5, 5) , val_wcoynelle, font=font_big,fill=0)
+        draw.text( (8, 45) , val_wcoymax + " max", font=font_xtitle, fill=0)
+        draw.text( (5, 92) , val_wsenepi, font=font_xtitle,fill=0)
+        draw.text( (8, 120) ,val_wsenmax + " max", font=font_title, fill=0)
     elif mode == 6:
         draw.text( (0, 0) , "Exterieur: "+val_text, font=font_title, fill=0)
         draw.text( (0, 32) , "Salon: "+val_tsalon, font=font_values, fill=0)
@@ -351,7 +356,7 @@ def refresh_screen7_10(type,mode):
     else:
         draw.text( (70,5 ) , 'OFF', font=font_xbig, fill=0)
         draw.text( (5, 55) , val_tdouche+'/'+val_hdouche, font=font_big, fill=0)
-        draw.text( (5, 85) ,'['+pddouche+']' , font=font_big, fill=0)
+        draw.text( (5, 85) ,'['+str(pddouche)+']' , font=font_big, fill=0)
 
     now = datetime.now().strftime('%d %b %H:%M')
     draw.text( (5, 152) , now , font=font_title, fill=0)
@@ -441,15 +446,13 @@ def main():
             refresh_screen7_10('full',current_mode)
             count = 0
             
-        # Mode = 11
-        # Not implemented yet
+        # Mode = 5
+        # Force Display with winds from domoticz 
         # This is the THIRD button FROM THE LEFT
-        # Screen will be refreshed every second
+        # Screen will be refreshed every 5 minutes
         elif GPIO.input(SW2) == False:
-            current_mode =11
-            duration= timedelta(minutes = 3)
-            chronoend = datetime.now() + duration
-            refresh_screen11('full',current_mode)
+            current_mode = 5
+            refresh_screen1_6('full',current_mode)
             count = 0
 
         # This is button on the UPPER RIGHT of the screen
@@ -483,4 +486,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
