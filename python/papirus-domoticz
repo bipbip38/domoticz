@@ -282,9 +282,12 @@ def refresh_screen1_6(type,mode):
     font_values = ImageFont.truetype(font_path, 16)
     font_small = ImageFont.truetype(font_path, 12)
 
+    now = datetime.now().strftime('%d %b %H:%M')
+
     if mode == 1:
         draw.text( (20, 20) , val_text, font=font_xbig, fill=0)
-        draw.text( (5, 85) , val_wcoynelle, font=font_big,fill=0)
+        draw.text( (5, 85) , val_wcoymax, font=font_big,fill=0)
+        draw.text( (0, 143) ,now , font=font_xtitle, fill=0)
     elif mode == 2:
         draw.text( (5, 40) , "Nono: "+val_tchbrnono, font=font_big, fill=0)
         draw.text( (5, 80) , "Grenier: "+val_tgrenier, font=font_big, fill=0)
@@ -295,10 +298,10 @@ def refresh_screen1_6(type,mode):
         draw.text( (5, 40) , "Salon: "+val_tsalon, font=font_big, fill=0)
         draw.text( (5, 80) , "TV: "+val_ttv, font=font_big, fill=0)
     elif mode == 5:
-        draw.text( (5, 5) , val_wcoynelle, font=font_big,fill=0)
-        draw.text( (8, 45) , val_wcoymax + " max", font=font_xtitle, fill=0)
-        draw.text( (5, 92) , val_wsenepi, font=font_xtitle,fill=0)
-        draw.text( (8, 120) ,val_wsenmax + " max", font=font_title, fill=0)
+        draw.text( (5, 5) , val_wcoymax, font=font_xtitle,fill=0)
+        draw.text( (8, 40) , val_wcoynelle + " moy", font=font_xtitle, fill=0)
+        draw.text( (5, 85) , val_wsenmax, font=font_xtitle,fill=0)
+        draw.text( (8, 120) ,val_wsenepi + " moy", font=font_xtitle, fill=0)
     elif mode == 6:
         draw.text( (0, 0) , "Exterieur: "+val_text, font=font_title, fill=0)
         draw.text( (0, 32) , "Salon: "+val_tsalon, font=font_values, fill=0)
@@ -306,12 +309,11 @@ def refresh_screen1_6(type,mode):
         draw.text( (0, 82) , "Douche: "+val_tdouche, font=font_values, fill=0)
         draw.text( (0, 107) , "Grenier: "+val_tgrenier, font=font_values, fill=0)
         draw.text( (0, 132) ,"Nono: "+val_tchbrnono, font=font_values, fill=0)
+        draw.text( (0, 152) ,+now , font=font_values, fill=0)
     else:
         draw.text( (0, 40) , "something went wrong !", font=font_values, fill=0)
 
 
-    now = datetime.now().strftime('%d %b %H:%M')
-    draw.text( (0, 152) , "mode "+str(mode)+ " / "+now , font=font_values, fill=0)
 
     papirus.display(image)
 
