@@ -89,6 +89,13 @@ dz_tdouche_idx=config.get('global','dz_tdouche_idx')
 #Wind
 dz_piou178_idx=config.get('global','dz_piou178_idx')
 dz_piou378_idx=config.get('global','dz_piou378_idx')
+#Switch
+dz_sprinter_idx=config.get('global','dz_sprinter_idx')
+dz_slaptop_idx=config.get('global','dz_slaptop_idx')
+dz_sdesktop_idx=config.get('global','dz_sdesktop_idx')
+dz_sipod_idx=config.get('global','dz_sipod_idx')
+dz_smobile_idx=config.get('global','dz_smobile_idx')
+
 # Variables
 dz_showerStarted_idx=config.get('global','dz_showerStarted_idx')
 ##################  ENd of Parameters ######################
@@ -201,11 +208,41 @@ def get_wind (idx):
         max_str=response['result'][0]['Gust']
         wind_str=dir_str+" / "+str(speed_str)+" km/h"
         windmax_str=str(max_str)+" km/h"
-        return wind_str,windmax_str
+        
+        is_valid=response['result'][0]['HaveTimeout']
+        if is_valid:
+            return wind_str,windmax_str
+        else:
+            return wind_str+u'\u0025',windmax_str+u'\u0025'  
     else:
         print "Error ("+str(status)+") reading data from Domoticz API using request: "+pi_request
-        return 'ER-PD-002','ER-PD_002'
+        return 'ER-PD-003','ER-PD_003'
+        
+def get_switch (idx):
+    # domoticz URL to get value from a device:
+    # https://server/json.htm?type=devices&rid=20
+    # see https://www.domoticz.com/wiki/Domoticz_API/
 
+    json_url_text='/json.htm?type=devices&rid='
+
+    dz_request='http://'+dz_ip+':'+dz_port+json_url_text+idx
+
+    r=requests.get(dz_request,auth=HTTPBasicAuth(dz_user,dz_password))
+
+    status=r.status_code
+    if status == 200:
+    # API send 200 if everything is OK
+        response=r.json()
+        # LastUpdate: "2017-05-03 20:21:05"
+        last_update=response['result'][0]['LastUpdate']
+        status=response['result'][0]['Status']
+        # process time difference since last update
+        td = datetime.now() - datetime.strptime(last_update, '%Y-%m-%d %H:%M:%S')
+        return status,last_update,td
+    else:
+        print "Error ("+str(status)+") reading data from Domoticz API using request: "+pi_request
+        return 'ER-PD-004','ER-PD_004'
+        
 def get_var (idx):
     # domoticz URL to get user variable value:
     # https://server/json.htm?type=command&param=getuservariable&idx=11
@@ -309,7 +346,7 @@ def refresh_screen1_6(type,mode):
         draw.text( (0, 82) , "Douche: "+val_tdouche, font=font_values, fill=0)
         draw.text( (0, 107) , "Grenier: "+val_tgrenier, font=font_values, fill=0)
         draw.text( (0, 132) ,"Nono: "+val_tchbrnono, font=font_values, fill=0)
-        draw.text( (0, 152) ,+now , font=font_values, fill=0)
+        draw.text( (0, 152) ,now , font=font_values, fill=0)
     else:
         draw.text( (0, 40) , "something went wrong !", font=font_values, fill=0)
 
@@ -335,33 +372,56 @@ def refresh_screen7_10(type,mode):
     font_title = ImageFont.truetype(font_path, 20)
     font_values = ImageFont.truetype(font_path, 16)
     font_small = ImageFont.truetype(font_path, 12)
-
-    val_tdouche,tdouche = get_temp(dz_tdouche_idx,pdouche)
-    pdouche = tdouche
-    val_hdouche,hdouche = get_hum(dz_tdouche_idx,phdouche)
-    phdouche = hdouche
-
-    # Get shower duration in minutes  
-    val_ddouche = get_var("11")
-    if val_ddouche !='0':
-      pddouche=val_ddouche
-  
-    # Only refresh screen if duration is > 0 
-        # initially set all white background
+    
+    # initially set all white background
     image = Image.new('1', papirus.size, 1)
     draw = ImageDraw.Draw(image)
 
-    if val_ddouche !='0':
-        draw.text( (70,5 ) , 'ON', font=font_xbig, fill=0)
-        draw.text( (5, 55) , val_tdouche+'/'+val_hdouche, font=font_big, fill=0)
-        draw.text( (5, 85) , val_ddouche+' minutes', font=font_xbig, fill=0)
-    else:
-        draw.text( (70,5 ) , 'OFF', font=font_xbig, fill=0)
-        draw.text( (5, 55) , val_tdouche+'/'+val_hdouche, font=font_big, fill=0)
-        draw.text( (5, 85) ,'['+str(pddouche)+']' , font=font_big, fill=0)
+    if mode == 7:
+        val_tdouche,tdouche = get_temp(dz_tdouche_idx,pdouche)
+        pdouche = tdouche
+        val_hdouche,hdouche = get_hum(dz_tdouche_idx,phdouche)
+        phdouche = hdouche
 
-    now = datetime.now().strftime('%d %b %H:%M')
-    draw.text( (5, 152) , now , font=font_title, fill=0)
+        # Get shower duration in minutes  
+        val_ddouche = get_var("11")
+        if val_ddouche !='0':
+          pddouche=val_ddouche
+
+        # Only refresh screen if duration is > 0 
+        if val_ddouche !='0':
+            draw.text( (70,5 ) , 'ON', font=font_xbig, fill=0)
+            draw.text( (5, 55) , val_tdouche+'/'+val_hdouche, font=font_big, fill=0)
+            draw.text( (5, 85) , val_ddouche+' minutes', font=font_xbig, fill=0)
+        else:
+            draw.text( (70,5 ) , 'OFF', font=font_xbig, fill=0)
+            draw.text( (5, 55) , val_tdouche+'/'+val_hdouche, font=font_big, fill=0)
+            draw.text( (5, 85) ,'['+str(pddouche)+']' , font=font_big, fill=0)
+
+        now = datetime.now().strftime('%d %b %H:%M')
+        draw.text( (5, 152) , now , font=font_title, fill=0)
+    
+    if mode == 8:
+        status,last_update,td = get_switch (dz_sipod_idx)
+        totalstr='{0:.0f}'.format(round(td.total_seconds()/60,2))
+        draw.text( (110,5 ) , status, font=font_xbig, fill=0)
+        draw.text( (110, 55) , last_update, font=font_values, fill=0)
+        draw.text( (110, 85) , totalstr+' min', font=font_big, fill=0)
+ 
+    if mode == 9:
+        status,last_update,td = get_switch (dz_sprinter_idx)
+        totalstr='{0:.0f}'.format(round(td.total_seconds()/60,2))
+        draw.text( (110,5 ) , status, font=font_xbig, fill=0)
+        draw.text( (110, 55) , last_update, font=font_values, fill=0)
+        draw.text( (110, 85) , totalstr, font=font_big, fill=0)
+        
+    if mode == 10:
+        status,last_update,td = get_switch (dz_slaptop_idx)
+        totalstr='{0:.0f}'.format(round(td.total_seconds()/60,2))
+        draw.text( (110,5 ) , status, font=font_xbig, fill=0)
+        draw.text( (110, 55) , last_update, font=font_values, fill=0)
+        draw.text( (110, 85) , totalstr, font=font_big, fill=0)
+
 
     papirus.display(image)
 
