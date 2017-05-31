@@ -22,6 +22,8 @@ import sys
 import time
 from datetime import datetime,timedelta
 from papirus import Papirus
+from papirus import PapirusComposite
+from papirus import PapirusTextPos
 from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
@@ -98,6 +100,9 @@ dz_smobile_idx=config.get('global','dz_smobile_idx')
 
 # Variables
 dz_showerStarted_idx=config.get('global','dz_showerStarted_idx')
+
+# directories
+img_folder=config.get('global','img_folder')
 ##################  ENd of Parameters ######################
 
 ### Request domoticz api server to get data for the given device 
@@ -149,12 +154,12 @@ def get_temp (idx,prev_value):
 
         temp_valid=response['result'][0]['HaveTimeout']
         if temp_valid:
-          return str(temp_value)+u'\u00B0C'+ ' (!)',temp_value
+          return str(temp_value)+u'\u00B0'+ ' (!)',temp_value,''
         else:
-          return str(temp_value)+u'\u00B0C'+trend_str,temp_value
+          return str(temp_value)+u'\u00B0',temp_value,trend_str
     else:
         print "Error ("+str(status)+") reading data from Domoticz API using request: "+dz_request
-        return 'ER-PD-001',-1
+        return 'ER-PD-001',-1,''
 
 def get_hum (idx,prev_value):
     # domoticz URL to get value from a device:
@@ -181,9 +186,9 @@ def get_hum (idx,prev_value):
 
         temp_valid=response['result'][0]['HaveTimeout']
         if temp_valid:
-          return str(temp_value)+u'\u0025'+ ' (!)',temp_value
+          return str(temp_value)+u'\u0025'+ ' (!)',temp_value,trend_str
         else:
-          return str(temp_value)+u'\u0025'+trend_str,temp_value
+          return str(temp_value)+u'\u0025'+trend_str,temp_value,trend_str
     else:
         print "Error ("+str(status)+") reading data from Domoticz API using request: "+dz_request
         return 'ER-PD-003',-1
@@ -206,14 +211,14 @@ def get_wind (idx):
         speed_str=response['result'][0]['Speed']
         dir_str=response['result'][0]['DirectionStr']
         max_str=response['result'][0]['Gust']
-        wind_str=dir_str+" / "+str(speed_str)+" km/h"
-        windmax_str=str(max_str)+" km/h"
+        wind_str=str(speed_str)
+        windmax_str=str(max_str)
         
-        is_valid=response['result'][0]['HaveTimeout']
-        if is_valid:
-            return wind_str,windmax_str
+        wind_valid=response['result'][0]['HaveTimeout']
+        if wind_valid:
+            return wind_str,windmax_str,'(!)'
         else:
-            return wind_str+u'\u0025',windmax_str+u'\u0025'  
+            return wind_str,windmax_str,dir_str
     else:
         print "Error ("+str(status)+") reading data from Domoticz API using request: "+pi_request
         return 'ER-PD-003','ER-PD_003'
@@ -234,10 +239,11 @@ def get_switch (idx):
     # API send 200 if everything is OK
         response=r.json()
         # LastUpdate: "2017-05-03 20:21:05"
-        last_update=response['result'][0]['LastUpdate']
+        last_update_str=response['result'][0]['LastUpdate']
         status=response['result'][0]['Status']
         # process time difference since last update
-        td = datetime.now() - datetime.strptime(last_update, '%Y-%m-%d %H:%M:%S')
+        td = datetime.now() - datetime.strptime(last_update_str, '%Y-%m-%d %H:%M:%S')
+        last_update=datetime.strptime(last_update_str, '%Y-%m-%d %H:%M:%S')
         return status,last_update,td
     else:
         print "Error ("+str(status)+") reading data from Domoticz API using request: "+pi_request
@@ -290,29 +296,26 @@ def refresh_screen1_6(type,mode):
 
 
     # Get latest values from Domoticz
-    val_text,texter = get_temp(dz_text_idx,pexter)
+    val_text,texter,trend_text = get_temp(dz_text_idx,pexter)
     pexter = texter
-    val_ttv,ttv = get_temp(dz_ttv_idx,ptv)
+    val_ttv,ttv,trend_ttv = get_temp(dz_ttv_idx,ptv)
     ptv = ttv
-    val_tsalon,tsalon = get_temp(dz_tsalon_idx,psalon)
+    val_tsalon,tsalon,trend_tsalon = get_temp(dz_tsalon_idx,psalon)
     psalon = tsalon
-    val_tgrenier,tgrenier = get_temp(dz_tgrenier_idx,pgrenier)
+    val_tgrenier,tgrenier,trend_tgrenier = get_temp(dz_tgrenier_idx,pgrenier)
     pgrenier = tgrenier
-    val_tdouche,tdouche = get_temp(dz_tdouche_idx,pdouche)
+    val_tdouche,tdouche,trend_tdouche = get_temp(dz_tdouche_idx,pdouche)
     pdouche = tdouche
-    val_hdouche,hdouche = get_hum(dz_tdouche_idx,phdouche)
+    val_hdouche,hdouche,trend_hdouche = get_hum(dz_tdouche_idx,phdouche)
     phdouche = hdouche
-    val_tchbrnono,tchbrnono = get_temp(dz_tchbrnono_idx,pchbrnono)
+    val_tchbrnono,tchbrnono,trend_tchbrnono = get_temp(dz_tchbrnono_idx,pchbrnono)
     pchbrnono = tchbrnono
-    val_wcoynelle,val_wcoymax = get_wind(dz_piou178_idx)
-    val_wsenepi,val_wsenmax = get_wind(dz_piou378_idx)
-
-    # initially set all white background
-    image = Image.new('1', papirus.size, 1)
-    draw = ImageDraw.Draw(image)
+    val_wcoynelle,val_wcoymax,val_wcoydirec = get_wind(dz_piou178_idx)
+    val_wsenepi,val_wsenmax,val_wsendirec = get_wind(dz_piou378_idx)
 
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_xbig = ImageFont.truetype(font_path, 50)
+    font_sbig = ImageFont.truetype(font_path, 34)
     font_big = ImageFont.truetype(font_path, 30)
     font_xtitle = ImageFont.truetype(font_path, 25)
     font_title = ImageFont.truetype(font_path, 20)
@@ -320,26 +323,74 @@ def refresh_screen1_6(type,mode):
     font_small = ImageFont.truetype(font_path, 12)
 
     now = datetime.now().strftime('%d %b %H:%M')
+    strtime = datetime.now().strftime('%H:%M')
 
     if mode == 1:
+        image = Image.new('1', papirus.size, 1)
+        draw = ImageDraw.Draw(image)
         draw.text( (20, 20) , val_text, font=font_xbig, fill=0)
-        draw.text( (5, 85) , val_wcoymax, font=font_big,fill=0)
-        draw.text( (0, 143) ,now , font=font_xtitle, fill=0)
+        draw.text( (5, 90) , val_wcoymax+'km/h max', font=font_sbig,fill=0)
+        draw.text( (100, 125) ,strtime , font=font_big, fill=0)
+        papirus.display(image)
+
     elif mode == 2:
-        draw.text( (5, 40) , "Nono: "+val_tchbrnono, font=font_big, fill=0)
-        draw.text( (5, 80) , "Grenier: "+val_tgrenier, font=font_big, fill=0)
+        image = Image.open(img_folder+'home-diff.png')
+        draw = ImageDraw.Draw(image)
+
+        if trend_text == '-':
+             trendimage = Image.open(img_folder+'arrow-down.png')
+             image.paste(trendimage,(19,45))  
+        elif trend_text == '+':
+             trendimage = Image.open(img_folder+'arrow-up.png')
+             image.paste(trendimage,(19,45))  
+
+
+        draw.text( (4,137) ,str(texter)+u'\u00B0',font=font_sbig,fill=0)
+
+        diffsalon=tsalon-texter
+        draw.text( (152,137) ,str(diffsalon)+u'\u00B0',font=font_big,fill=0)
+        difftv=ttv-texter
+        draw.text( (152,99) ,str(difftv)+u'\u00B0',font=font_big,fill=0)
+        diffgre=tgrenier-texter
+        draw.text( (126,67) ,str(diffgre)+u'\u00B0',font=font_xtitle,fill=0)
+        if diffgre<0:
+            draw.text( (148,34) ,'-',font=font_sbig,fill=0)
+        else:
+            draw.text( (148,34) ,'+',font=font_sbig,fill=0)
+
+        diffnono=tchbrnono-texter
+        if diffnono<0:
+            draw.text( (200,34) ,'-',font=font_sbig,fill=0)
+        else:
+            draw.text( (200,34) ,'+',font=font_sbig,fill=0)
+        draw.text( (201,67) ,str(diffnono)+u'\u00B0',font=font_xtitle,fill=0)
+        papirus.display(image)
+
     elif mode == 3:
-        draw.text( (5, 40) , "TV: "+val_ttv, font=font_big, fill=0)
-        draw.text( (5, 80) , "Douche: "+val_tdouche, font=font_big, fill=0)
-    elif mode == 4:
+        image = Image.new('1', papirus.size, 1)
+        draw = ImageDraw.Draw(image)
         draw.text( (5, 40) , "Salon: "+val_tsalon, font=font_big, fill=0)
         draw.text( (5, 80) , "TV: "+val_ttv, font=font_big, fill=0)
+        papirus.display(image)
+
+    elif mode == 4:
+        image = Image.open(img_folder+'wind-coy.png')
+        draw = ImageDraw.Draw(image)
+        draw.text( (23, 69) , val_wcoynelle, font=font_sbig, fill=0)
+        draw.text( (101, 129) , val_wcoymax, font=font_big,fill=0)
+        draw.text( (171, 72) , val_wcoydirec, font=font_big, fill=0)
+        papirus.display(image)
     elif mode == 5:
-        draw.text( (5, 5) , val_wcoymax, font=font_xtitle,fill=0)
-        draw.text( (8, 40) , val_wcoynelle + " moy", font=font_xtitle, fill=0)
-        draw.text( (5, 85) , val_wsenmax, font=font_xtitle,fill=0)
-        draw.text( (8, 120) ,val_wsenepi + " moy", font=font_xtitle, fill=0)
+        image = Image.new('1', papirus.size, 1)
+        draw = ImageDraw.Draw(image)
+        draw.text( (5, 5) , val_wcoymax+" km/h max", font=font_big,fill=0)
+        draw.text( (8, 42) , val_wcoynelle + " km/h moy", font=font_big, fill=0)
+        draw.text( (5, 103) , val_wsenmax+" km/h max", font=font_big,fill=0)
+        draw.text( (8, 140) ,val_wsenepi + " km/h moy", font=font_big, fill=0)
+        papirus.display(image)
     elif mode == 6:
+        image = Image.new('1', papirus.size, 1)
+        draw = ImageDraw.Draw(image)
         draw.text( (0, 0) , "Exterieur: "+val_text, font=font_title, fill=0)
         draw.text( (0, 32) , "Salon: "+val_tsalon, font=font_values, fill=0)
         draw.text( (0, 57) , "TV: "+val_ttv, font=font_values, fill=0)
@@ -347,12 +398,12 @@ def refresh_screen1_6(type,mode):
         draw.text( (0, 107) , "Grenier: "+val_tgrenier, font=font_values, fill=0)
         draw.text( (0, 132) ,"Nono: "+val_tchbrnono, font=font_values, fill=0)
         draw.text( (0, 152) ,now , font=font_values, fill=0)
+        papirus.display(image)
     else:
+        image = Image.new('1', papirus.size, 1)
+        draw = ImageDraw.Draw(image)
         draw.text( (0, 40) , "something went wrong !", font=font_values, fill=0)
-
-
-
-    papirus.display(image)
+        papirus.display(image)
 
     if type == 'full':
         papirus.update()
@@ -368,19 +419,23 @@ def refresh_screen7_10(type,mode):
 
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_xbig = ImageFont.truetype(font_path, 40)
-    font_big = ImageFont.truetype(font_path, 25)
+    font_big = ImageFont.truetype(font_path, 34)
     font_title = ImageFont.truetype(font_path, 20)
     font_values = ImageFont.truetype(font_path, 16)
     font_small = ImageFont.truetype(font_path, 12)
     
     # initially set all white background
-    image = Image.new('1', papirus.size, 1)
-    draw = ImageDraw.Draw(image)
+    # image = Image.new('1', papirus.size, 1)
+    # draw = ImageDraw.Draw(image)
+
+    # initially set a background image (size has to be 264 x 176)
 
     if mode == 7:
-        val_tdouche,tdouche = get_temp(dz_tdouche_idx,pdouche)
+        image = Image.open(img_folder+'douche-time.png')
+        draw = ImageDraw.Draw(image)
+        val_tdouche,tdouche,trend_tdouche = get_temp(dz_tdouche_idx,pdouche)
         pdouche = tdouche
-        val_hdouche,hdouche = get_hum(dz_tdouche_idx,phdouche)
+        val_hdouche,hdouche,trend_hdouche = get_hum(dz_tdouche_idx,phdouche)
         phdouche = hdouche
 
         # Get shower duration in minutes  
@@ -390,37 +445,42 @@ def refresh_screen7_10(type,mode):
 
         # Only refresh screen if duration is > 0 
         if val_ddouche !='0':
-            draw.text( (70,5 ) , 'ON', font=font_xbig, fill=0)
-            draw.text( (5, 55) , val_tdouche+'/'+val_hdouche, font=font_big, fill=0)
-            draw.text( (5, 85) , val_ddouche+' minutes', font=font_xbig, fill=0)
+            draw.text( (125,5 ) , 'ON', font=font_xbig, fill=0)
+            draw.text( (110, 131) , val_ddouche+' min', font=font_xbig, fill=0)
         else:
-            draw.text( (70,5 ) , 'OFF', font=font_xbig, fill=0)
-            draw.text( (5, 55) , val_tdouche+'/'+val_hdouche, font=font_big, fill=0)
-            draw.text( (5, 85) ,'['+str(pddouche)+']' , font=font_big, fill=0)
+            draw.text( (125,5 ) , 'OFF', font=font_xbig, fill=0)
+            draw.text( (110, 131) , str(pddouche)+' min', font=font_xbig, fill=0)
 
-        now = datetime.now().strftime('%d %b %H:%M')
-        draw.text( (5, 152) , now , font=font_title, fill=0)
+        now = datetime.now().strftime('%H:%M')
+        draw.text( (25, 152) , now , font=font_title, fill=0)
     
     if mode == 8:
+        image = Image.open(img_folder+'ipod-time.png')
+        draw = ImageDraw.Draw(image)
         status,last_update,td = get_switch (dz_sipod_idx)
         totalstr='{0:.0f}'.format(round(td.total_seconds()/60,2))
-        draw.text( (110,5 ) , status, font=font_xbig, fill=0)
-        draw.text( (110, 55) , last_update, font=font_values, fill=0)
-        draw.text( (110, 85) , totalstr+' min', font=font_big, fill=0)
+        draw.text( (100,5 ) , status, font=font_xbig, fill=0)
+        draw.text( (95, 55) , last_update.strftime('%H:%M - %d %b'), font=font_title, fill=0)
+        draw.text( (100, 95) , totalstr+' min', font=font_big, fill=0)
  
     if mode == 9:
+        image = Image.open(img_folder+'printer-time.png')
+        draw = ImageDraw.Draw(image)
         status,last_update,td = get_switch (dz_sprinter_idx)
         totalstr='{0:.0f}'.format(round(td.total_seconds()/60,2))
-        draw.text( (110,5 ) , status, font=font_xbig, fill=0)
-        draw.text( (110, 55) , last_update, font=font_values, fill=0)
-        draw.text( (110, 85) , totalstr, font=font_big, fill=0)
+        draw.text( (130,5 ) , status, font=font_xbig, fill=0)
+        draw.text( (130, 55) , last_update.strftime('%H:%M - %d %b'), font=font_title, fill=0)
+        draw.text( (130, 100) , totalstr+' min', font=font_big, fill=0)
         
     if mode == 10:
+        image = Image.open(img_folder+'laptop-time.png')
+        draw = ImageDraw.Draw(image)
         status,last_update,td = get_switch (dz_slaptop_idx)
         totalstr='{0:.0f}'.format(round(td.total_seconds()/60,2))
-        draw.text( (110,5 ) , status, font=font_xbig, fill=0)
-        draw.text( (110, 55) , last_update, font=font_values, fill=0)
-        draw.text( (110, 85) , totalstr, font=font_big, fill=0)
+        draw.text( (140,5 ) , status, font=font_xbig, fill=0)
+        draw.text( (140, 55) , last_update.strftime('%H:%M'), font=font_title, fill=0)
+        draw.text( (140, 85) , last_update.strftime('%d %b'), font=font_title, fill=0)
+        draw.text( (115, 110) , totalstr+' min', font=font_big, fill=0)
 
 
     papirus.display(image)
@@ -431,8 +491,8 @@ def refresh_screen7_10(type,mode):
           papirus.partial_update()
         
 ## ------------------------------------------------------------------------------
-## Screen refresh function for Mode 11
-def refresh_screen11(type,mode):
+## Screen refresh function for Mode 31 
+def refresh_screen31(type,mode):
 
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_xbig = ImageFont.truetype(font_path, 50)
@@ -462,6 +522,29 @@ def refresh_screen11(type,mode):
     else:
         papirus.partial_update()
 
+## ------------------------------------------------------------------------------
+## Screen refresh function for Homeworks [11 to 21]
+def refresh_screen_homeworks(type,mode):
+
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font_xbig = ImageFont.truetype(font_path, 50)
+    font_big = ImageFont.truetype(font_path, 30)
+    font_title = ImageFont.truetype(font_path, 20)
+    font_values = ImageFont.truetype(font_path, 16)
+    font_small = ImageFont.truetype(font_path, 12)
+
+    # determine which item to display [0->10]
+    item = mode - 11 
+    # initially set all white background
+    image = Image.open('201705181600-5.1.png')
+    draw = ImageDraw.Draw(image)
+
+    papirus.display(image)
+
+    if type == 'full':
+        papirus.update()
+    else:
+        papirus.partial_update()
 
 ##### MAIN ######
 def main():
@@ -475,7 +558,7 @@ def main():
 
 
     ## Initially display mode 1 ...
-    current_mode=1
+    current_mode=2
     refresh_screen1_6('full',current_mode)
 
     ## set all current temp to 0 for trend 
@@ -498,6 +581,7 @@ def main():
             count = 0
             
         # Mode in between 7 and 10: use along with the humidity control of the shower.
+        # Display the state of switched too                          
         # This is the SECOND button FROM THE LEFT
         # Screen will be refreshed every minute
         elif GPIO.input(SW3) == False:
@@ -518,11 +602,15 @@ def main():
             count = 0
 
         # This is button on the UPPER RIGHT of the screen
-        # Mode = 1
-        # Force Display with all temp and wind from domoticz 
+        # Mode = 11 to 21 
+        # Display last 10 records from an xml feed (for example Homeworks for the kids) 
         elif GPIO.input(SW1) == False:
-            current_mode = 1
-            refresh_screen1_6('full',current_mode)
+            if (current_mode > 10 and current_mode <21):
+            	current_mode = current_mode +1
+            else:
+            	current_mode = 11
+
+            refresh_screen_homeworks('full',current_mode)
             count = 0
 
         # Check if Mode has to be automatically switch based on Domoticz variable
@@ -532,10 +620,11 @@ def main():
 
         # mode [1-6] Refresh screen with current values from domoticz every ~5 minutes
         # mode [7-10] Refresh screen with current values from domoticz every ~1 minutes
-        # mode [11]  Refresh every 1 sec
+        # mode [11-21]  Refresh scree from rss feed every ~20 minutes
+        # mode [31]  Refresh every 1 sec
 
         count = count + 1
-        if (current_mode == 11 and count > 10):
+        if (current_mode == 31 and count > 10):
             count = 0
             refresh_screen11('partial',current_mode)
         elif (current_mode >=1 and current_mode <=6 and count > 3000):
@@ -544,6 +633,9 @@ def main():
         elif (current_mode >=7 and current_mode <=10 and count > 600):
             count = 0
             refresh_screen7_10('partial',current_mode)    
+        elif (current_mode >=11 and current_mode <=21 and count > 1200):
+            count = 0
+            refresh_screen_homeworks('partial',current_mode)    
         time.sleep(0.1)
 
 if __name__ == '__main__':
