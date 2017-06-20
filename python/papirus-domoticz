@@ -146,9 +146,9 @@ def get_temp (idx,prev_value):
         response=r.json()
         temp_value=response['result'][0]['Temp']
         if temp_value > prev_value:
-            trend_str=' +'
+            trend_str='+'
         elif temp_value < prev_value:
-            trend_str=' -'
+            trend_str='-'
         else:
             trend_str=''
 
@@ -178,9 +178,9 @@ def get_hum (idx,prev_value):
         response=r.json()
         temp_value=response['result'][0]['Humidity']
         if temp_value > prev_value:
-            trend_str=' +'
+            trend_str='+'
         elif temp_value < prev_value:
-            trend_str=' -'
+            trend_str='-'
         else:
             trend_str=''
 
@@ -294,6 +294,7 @@ def refresh_screen1_6(type,mode):
     global pdouche 
     global phdouche 
 
+    # screen size is 264 x 176
 
     # Get latest values from Domoticz
     val_text,texter,trend_text = get_temp(dz_text_idx,pexter)
@@ -328,9 +329,25 @@ def refresh_screen1_6(type,mode):
     if mode == 1:
         image = Image.new('1', papirus.size, 1)
         draw = ImageDraw.Draw(image)
-        draw.text( (20, 20) , val_text, font=font_xbig, fill=0)
-        draw.text( (5, 90) , val_wcoymax+'km/h max', font=font_sbig,fill=0)
-        draw.text( (100, 125) ,strtime , font=font_big, fill=0)
+        draw.text( (10, 5) , val_text, font=font_xbig, fill=0)
+        draw.text( (85, 85) , val_wcoymax, font=font_sbig,fill=0)
+        draw.text( (170, 89) , 'km/h', font=font_xtitle,fill=0)
+        draw.text( (155, 141) ,strtime , font=font_sbig, fill=0)
+
+        winddirimage = Image.open(img_folder+val_wcoydirec+'.png')
+        image.paste(winddirimage,(0,74))  
+
+        clockimage = Image.open(img_folder+'clock.png')
+        image.paste(clockimage,(101,128))  
+
+        if trend_text == '-':
+             trendimage = Image.open(img_folder+'arrow-down-lite.png')
+             image.paste(trendimage,(166,0))  
+        elif trend_text == '+':
+             trendimage = Image.open(img_folder+'arrow-up-lite.png')
+             image.paste(trendimage,(166,0))  
+
+
         papirus.display(image)
 
     elif mode == 2:
@@ -558,7 +575,7 @@ def main():
 
 
     ## Initially display mode 1 ...
-    current_mode=2
+    current_mode=1
     refresh_screen1_6('full',current_mode)
 
     ## set all current temp to 0 for trend 
