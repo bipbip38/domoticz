@@ -283,9 +283,9 @@ def strfdelta(tdelta, fmt):
     return t.substitute(**d)
 
 ## ------------------------------------------------------------------------------
-## Screen refresh function for Mode 1 to 6 (Wind and Temperature)   
+## Screen refresh function for Mode 1 to 3 (Main & Temperature)   
 
-def refresh_screen1_6(type,mode):
+def refresh_screen1_3(type,mode):
     global pexter 
     global ptv 
     global pgrenier
@@ -312,10 +312,12 @@ def refresh_screen1_6(type,mode):
     val_tchbrnono,tchbrnono,trend_tchbrnono = get_temp(dz_tchbrnono_idx,pchbrnono)
     pchbrnono = tchbrnono
     val_wcoynelle,val_wcoymax,val_wcoydirec = get_wind(dz_piou178_idx)
-    val_wsenepi,val_wsenmax,val_wsendirec = get_wind(dz_piou378_idx)
 
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     font_xbig = ImageFont.truetype(font_path, 50)
+    font_38 = ImageFont.truetype(font_path, 38)
+    font_36 = ImageFont.truetype(font_path, 36)
+    font_26 = ImageFont.truetype(font_path, 26)
     font_sbig = ImageFont.truetype(font_path, 34)
     font_big = ImageFont.truetype(font_path, 30)
     font_xtitle = ImageFont.truetype(font_path, 25)
@@ -326,6 +328,7 @@ def refresh_screen1_6(type,mode):
     now = datetime.now().strftime('%d %b %H:%M')
     strtime = datetime.now().strftime('%H:%M')
 
+    #  Main - Temp Ext + Time + Wind
     if mode == 1:
         image = Image.new('1', papirus.size, 1)
         draw = ImageDraw.Draw(image)
@@ -335,7 +338,7 @@ def refresh_screen1_6(type,mode):
         draw.text( (155, 141) ,strtime , font=font_sbig, fill=0)
 
         winddirimage = Image.open(img_folder+val_wcoydirec+'.png')
-        image.paste(winddirimage,(0,74))  
+        image.paste(winddirimage,(0,80))  
 
         clockimage = Image.open(img_folder+'clock.png')
         image.paste(clockimage,(101,128))  
@@ -346,7 +349,6 @@ def refresh_screen1_6(type,mode):
         elif trend_text == '+':
              trendimage = Image.open(img_folder+'arrow-up-lite.png')
              image.paste(trendimage,(166,0))  
-
 
         papirus.display(image)
 
@@ -362,32 +364,25 @@ def refresh_screen1_6(type,mode):
              image.paste(trendimage,(19,45))  
 
 
-        draw.text( (4,137) ,str(texter)+u'\u00B0',font=font_sbig,fill=0)
+        draw.text( (1,137) ,str(texter)+u'\u00B0',font=font_38,fill=0)
 
         diffsalon=tsalon-texter
-        draw.text( (152,137) ,str(diffsalon)+u'\u00B0',font=font_big,fill=0)
+        draw.text( (152,137) ,str(diffsalon)+u'\u00B0',font=font_sbig,fill=0)
         difftv=ttv-texter
-        draw.text( (152,99) ,str(difftv)+u'\u00B0',font=font_big,fill=0)
+        draw.text( (152,99) ,str(difftv)+u'\u00B0',font=font_sbig,fill=0)
         diffgre=tgrenier-texter
         draw.text( (126,67) ,str(diffgre)+u'\u00B0',font=font_xtitle,fill=0)
         if diffgre<0:
-            draw.text( (148,34) ,'-',font=font_sbig,fill=0)
+            draw.text( (148,34) ,'-',font=font_38,fill=0)
         else:
-            draw.text( (148,34) ,'+',font=font_sbig,fill=0)
+            draw.text( (148,34) ,'+',font=font_38,fill=0)
 
         diffnono=tchbrnono-texter
         if diffnono<0:
-            draw.text( (200,34) ,'-',font=font_sbig,fill=0)
+            draw.text( (200,34) ,'-',font=font_38,fill=0)
         else:
-            draw.text( (200,34) ,'+',font=font_sbig,fill=0)
+            draw.text( (200,34) ,'+',font=font_38,fill=0)
         draw.text( (201,67) ,str(diffnono)+u'\u00B0',font=font_xtitle,fill=0)
-        papirus.display(image)
-
-    elif mode == 3:
-        image = Image.new('1', papirus.size, 1)
-        draw = ImageDraw.Draw(image)
-        draw.text( (5, 40) , "Salon: "+val_tsalon, font=font_big, fill=0)
-        draw.text( (5, 80) , "TV: "+val_ttv, font=font_big, fill=0)
         papirus.display(image)
 
     elif mode == 4:
@@ -397,29 +392,50 @@ def refresh_screen1_6(type,mode):
         draw.text( (101, 129) , val_wcoymax, font=font_big,fill=0)
         draw.text( (171, 72) , val_wcoydirec, font=font_big, fill=0)
         papirus.display(image)
-    elif mode == 5:
-        image = Image.new('1', papirus.size, 1)
+    elif mode == 3:
+        image = Image.open(img_folder+'home-all.png')
+        trenddown = Image.open(img_folder+'arrow-down-small.png')
+        trendup = Image.open(img_folder+'arrow-up-small.png')
         draw = ImageDraw.Draw(image)
-        draw.text( (5, 5) , val_wcoymax+" km/h max", font=font_big,fill=0)
-        draw.text( (8, 42) , val_wcoynelle + " km/h moy", font=font_big, fill=0)
-        draw.text( (5, 103) , val_wsenmax+" km/h max", font=font_big,fill=0)
-        draw.text( (8, 140) ,val_wsenepi + " km/h moy", font=font_big, fill=0)
-        papirus.display(image)
-    elif mode == 6:
-        image = Image.new('1', papirus.size, 1)
-        draw = ImageDraw.Draw(image)
-        draw.text( (0, 0) , "Exterieur: "+val_text, font=font_title, fill=0)
-        draw.text( (0, 32) , "Salon: "+val_tsalon, font=font_values, fill=0)
-        draw.text( (0, 57) , "TV: "+val_ttv, font=font_values, fill=0)
-        draw.text( (0, 82) , "Douche: "+val_tdouche, font=font_values, fill=0)
-        draw.text( (0, 107) , "Grenier: "+val_tgrenier, font=font_values, fill=0)
-        draw.text( (0, 132) ,"Nono: "+val_tchbrnono, font=font_values, fill=0)
-        draw.text( (0, 152) ,now , font=font_values, fill=0)
+
+        draw.text( (1,127) ,str(texter)+u'\u00B0',font=font_36,fill=0)
+        if trend_text == '-':
+             trendimage = Image.open(img_folder+'arrow-down.png')
+             image.paste(trendimage,(10,36))  
+        elif trend_text == '+':
+             trendimage = Image.open(img_folder+'arrow-up.png')
+             image.paste(trendimage,(10,36))  
+
+
+        draw.text( (146,141) ,str(tsalon)+u'\u00B0',font=font_36,fill=0)
+        if trend_text == '-':
+             image.paste(trenddown,(114,142))  
+        elif trend_text == '+':
+             image.paste(trendup,(114,142))  
+
+        draw.text( (146,103) ,str(ttv)+u'\u00B0',font=font_36,fill=0)
+        if trend_ttv == '-':
+             image.paste(trenddown,(114,100))  
+        elif trend_ttv == '+':
+             image.paste(trendup,(114,100))  
+
+        draw.text( (114,65) ,str(tgrenier),font=font_26,fill=0)
+        if trend_tgrenier == '-':
+             image.paste(trenddown,(146,27))  
+        elif trend_tgrenier == '+':
+             image.paste(trendup,(146,27))  
+
+        draw.text( (188,65) ,str(tchbrnono),font=font_26,fill=0)
+        if trend_tchbrnono == '-':
+             image.paste(trenddown,(186,27))  
+        elif trend_tchbrnono == '+':
+             image.paste(trendup,(186,27))  
+
         papirus.display(image)
     else:
-        image = Image.new('1', papirus.size, 1)
+        image = Image.new('1', papirus.size, 0)
         draw = ImageDraw.Draw(image)
-        draw.text( (0, 40) , "something went wrong !", font=font_values, fill=0)
+        draw.text( (0, 40) , "something went wrong !", font=font_values, fill=1)
         papirus.display(image)
 
     if type == 'full':
@@ -428,7 +444,7 @@ def refresh_screen1_6(type,mode):
         papirus.partial_update()
 
 ## ------------------------------------------------------------------------------
-## Screen refresh function for Mode 7 to 10 (Humidity Control)        
+## Screen refresh function for Mode 7 to 10 (Humidity Control)  - button 2 
 def refresh_screen7_10(type,mode):
     global pdouche 
     global phdouche 
@@ -508,6 +524,65 @@ def refresh_screen7_10(type,mode):
           papirus.partial_update()
         
 ## ------------------------------------------------------------------------------
+## Screen refresh function for Mode 4 to 6 (Wind)  - button 3
+
+def refresh_screen4_6(type,mode):
+    global pexter 
+    global ptv 
+    global pgrenier
+    global pchbrnono 
+    global psalon 
+    global pdouche 
+    global phdouche 
+
+    # screen size is 264 x 176
+
+    # Get latest values from Domoticz
+    val_wcoynelle,val_wcoymax,val_wcoydirec = get_wind(dz_piou178_idx)
+    val_wsenepi,val_wsenmax,val_wsendirec = get_wind(dz_piou378_idx)
+
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font_xbig = ImageFont.truetype(font_path, 50)
+    font_38 = ImageFont.truetype(font_path, 38)
+    font_36 = ImageFont.truetype(font_path, 36)
+    font_26 = ImageFont.truetype(font_path, 26)
+    font_sbig = ImageFont.truetype(font_path, 34)
+    font_big = ImageFont.truetype(font_path, 30)
+    font_xtitle = ImageFont.truetype(font_path, 25)
+    font_title = ImageFont.truetype(font_path, 20)
+    font_values = ImageFont.truetype(font_path, 16)
+    font_small = ImageFont.truetype(font_path, 12)
+
+    now = datetime.now().strftime('%d %b %H:%M')
+    strtime = datetime.now().strftime('%H:%M')
+
+    #  Main - Temp Ext + Time + Wind
+    if mode == 4:
+        image = Image.open(img_folder+'wind-coy.png')
+        draw = ImageDraw.Draw(image)
+        draw.text( (23, 69) , val_wcoynelle, font=font_sbig, fill=0)
+        draw.text( (101, 129) , val_wcoymax, font=font_big,fill=0)
+        draw.text( (171, 72) , val_wcoydirec, font=font_big, fill=0)
+        papirus.display(image)
+    elif mode == 5:
+        image = Image.open(img_folder+'wind-lac.png')
+        draw = ImageDraw.Draw(image)
+        draw.text( (17,36) , val_wsenepi, font=font_36, fill=0)
+        draw.text( (131,148) , val_wsenmax, font=font_big,fill=0)
+        winddirimage = Image.open(img_folder+val_wsendirec+'.png')
+        image.paste(winddirimage,(17,82))  
+        papirus.display(image)
+    else:
+        image = Image.new('1', papirus.size, 0)
+        draw = ImageDraw.Draw(image)
+        draw.text( (0, 40) , "something went wrong !", font=font_values, fill=1)
+        papirus.display(image)
+
+    if type == 'full':
+        papirus.update()
+    else:
+        papirus.partial_update()
+## ------------------------------------------------------------------------------
 ## Screen refresh function for Mode 31 
 def refresh_screen31(type,mode):
 
@@ -575,8 +650,8 @@ def main():
 
 
     ## Initially display mode 1 ...
-    current_mode=1
-    refresh_screen1_6('full',current_mode)
+    current_mode=3
+    refresh_screen1_3('full',current_mode)
 
     ## set all current temp to 0 for trend 
     count = 0
@@ -586,15 +661,15 @@ def main():
     
     while True:
 
-        # Mode in between 1 and 6: switch to display Temperature and Wind from domoticz
+        # Mode in between 1 and 3: switch to display Temperature and Wind from domoticz
         # This is button on the UPPER LEFT of the screen
         # Screen will be refreshed every 5 minutes
         if GPIO.input(SW4) == False:
-            if (current_mode > 0 and current_mode <6):
+            if (current_mode > 0 and current_mode <3):
             	current_mode = current_mode +1
             else:
             	current_mode=1
-            refresh_screen1_6('full',current_mode)
+            refresh_screen1_3('full',current_mode)
             count = 0
             
         # Mode in between 7 and 10: use along with the humidity control of the shower.
@@ -609,14 +684,18 @@ def main():
             refresh_screen7_10('full',current_mode)
             count = 0
             
-        # Mode = 5
-        # Force Display with winds from domoticz 
+        # Mode in between 4 and 6
+        # Display winds from domoticz 
         # This is the THIRD button FROM THE LEFT
         # Screen will be refreshed every 5 minutes
         elif GPIO.input(SW2) == False:
-            current_mode = 5
-            refresh_screen1_6('full',current_mode)
+            if (current_mode > 3 and current_mode <6):
+            	current_mode = current_mode +1
+            else:
+            	current_mode = 4
+            refresh_screen4_6('full',current_mode)
             count = 0
+            
 
         # This is button on the UPPER RIGHT of the screen
         # Mode = 11 to 21 
@@ -633,9 +712,9 @@ def main():
         # Check if Mode has to be automatically switch based on Domoticz variable
         #else:
         # Get showerStarted variable 
-        # current_mode = 7
 
-        # mode [1-6] Refresh screen with current values from domoticz every ~5 minutes
+        # mode [1-3] Refresh screen with current values from domoticz every ~5 minutes
+        # mode [4-6] Refresh screen with current values from domoticz every ~5 minutes
         # mode [7-10] Refresh screen with current values from domoticz every ~1 minutes
         # mode [11-21]  Refresh scree from rss feed every ~20 minutes
         # mode [31]  Refresh every 1 sec
@@ -643,10 +722,13 @@ def main():
         count = count + 1
         if (current_mode == 31 and count > 10):
             count = 0
-            refresh_screen11('partial',current_mode)
-        elif (current_mode >=1 and current_mode <=6 and count > 3000):
+            refresh_screen31('partial',current_mode)
+        elif (current_mode >=1 and current_mode <=3 and count > 3000):
             count = 0
-            refresh_screen1_6('partial',current_mode)
+            refresh_screen1_3('partial',current_mode)
+        elif (current_mode >=4 and current_mode <=6 and count > 3000):
+            count = 0
+            refresh_screen4_6('partial',current_mode)    
         elif (current_mode >=7 and current_mode <=10 and count > 600):
             count = 0
             refresh_screen7_10('partial',current_mode)    
