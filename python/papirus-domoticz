@@ -216,7 +216,7 @@ def get_wind (idx):
         
         wind_valid=response['result'][0]['HaveTimeout']
         if wind_valid:
-            return wind_str,windmax_str,'(!)'
+            return wind_str,windmax_str,'!'
         else:
             return wind_str,windmax_str,dir_str
     else:
@@ -291,8 +291,6 @@ def refresh_screen1_3(type,mode):
     global pgrenier
     global pchbrnono 
     global psalon 
-    global pdouche 
-    global phdouche 
 
     # screen size is 264 x 176
 
@@ -305,10 +303,6 @@ def refresh_screen1_3(type,mode):
     psalon = tsalon
     val_tgrenier,tgrenier,trend_tgrenier = get_temp(dz_tgrenier_idx,pgrenier)
     pgrenier = tgrenier
-    val_tdouche,tdouche,trend_tdouche = get_temp(dz_tdouche_idx,pdouche)
-    pdouche = tdouche
-    val_hdouche,hdouche,trend_hdouche = get_hum(dz_tdouche_idx,phdouche)
-    phdouche = hdouche
     val_tchbrnono,tchbrnono,trend_tchbrnono = get_temp(dz_tchbrnono_idx,pchbrnono)
     pchbrnono = tchbrnono
     val_wcoynelle,val_wcoymax,val_wcoydirec = get_wind(dz_piou178_idx)
@@ -336,9 +330,10 @@ def refresh_screen1_3(type,mode):
         draw.text( (85, 85) , val_wcoymax, font=font_sbig,fill=0)
         draw.text( (170, 89) , 'km/h', font=font_xtitle,fill=0)
         draw.text( (155, 141) ,strtime , font=font_sbig, fill=0)
-
-        winddirimage = Image.open(img_folder+val_wcoydirec+'.png')
-        image.paste(winddirimage,(0,80))  
+        
+        if val_wcoydirec != '!':
+           winddirimage = Image.open(img_folder+val_wcoydirec+'.png')
+           image.paste(winddirimage,(0,80))  
 
         clockimage = Image.open(img_folder+'clock.png')
         image.paste(clockimage,(101,128))  
@@ -385,13 +380,6 @@ def refresh_screen1_3(type,mode):
         draw.text( (201,67) ,str(diffnono)+u'\u00B0',font=font_xtitle,fill=0)
         papirus.display(image)
 
-    elif mode == 4:
-        image = Image.open(img_folder+'wind-coy.png')
-        draw = ImageDraw.Draw(image)
-        draw.text( (23, 69) , val_wcoynelle, font=font_sbig, fill=0)
-        draw.text( (101, 129) , val_wcoymax, font=font_big,fill=0)
-        draw.text( (171, 72) , val_wcoydirec, font=font_big, fill=0)
-        papirus.display(image)
     elif mode == 3:
         image = Image.open(img_folder+'home-all.png')
         trenddown = Image.open(img_folder+'arrow-down-small.png')
@@ -569,8 +557,9 @@ def refresh_screen4_6(type,mode):
         draw = ImageDraw.Draw(image)
         draw.text( (17,36) , val_wsenepi, font=font_36, fill=0)
         draw.text( (131,148) , val_wsenmax, font=font_big,fill=0)
-        winddirimage = Image.open(img_folder+val_wsendirec+'.png')
-        image.paste(winddirimage,(17,82))  
+        if val_wcoydirec != '!':
+           winddirimage = Image.open(img_folder+val_wsendirec+'.png')
+           image.paste(winddirimage,(17,82))  
         papirus.display(image)
     else:
         image = Image.new('1', papirus.size, 0)
